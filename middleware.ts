@@ -1,18 +1,44 @@
-import { NextRequest, NextResponse } from "next/server";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { NextResponse, type NextRequest } from "next/server";
 
-const USER_ROUTES = new Set(["/", "/grow", "/cash", "/me", "/safety"]);
+export async function middleware(request: NextRequest) {
+  let supabaseResponse = NextResponse.next({ request });
 
-export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-  if (!USER_ROUTES.has(pathname)) return NextResponse.next();
-
-  const onboarded = request.cookies.get("mc_onboarded")?.value === "1";
-  if (!onboarded) {
-    return NextResponse.redirect(new URL("/onboarding", request.url));
+  // Exclude /investor so it keeps its own wagmi/wallet state untouched
+  if (request.nextUrl.pathname.startsWith("/investor")) {
+    return supabaseResponse;
   }
-  return NextResponse.next();
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
+          // Request cookies don't take options
+          cookiesToSet.forEach(({ name, value }) =>
+            request.cookies.set(name, value)
+          );
+          supabaseResponse = NextResponse.next({ request });
+          cookiesToSet.forEach(({ name, value, options }) =>
+            supabaseResponse.cookies.set(name, value, options)
+          );
+        },
+      },
+    }
+  );
+
+  // Refresh the session — must not run any code between this and getUser()
+  await supabase.auth.getUser();
+
+  return supabaseResponse;
 }
 
 export const config = {
-  matcher: ["/", "/grow", "/cash", "/me", "/safety"],
+  matcher: [
+    "/((?!_next/static|_next/image|favicon\\.ico|icon\\.svg|manifest\\.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+  ],
 };

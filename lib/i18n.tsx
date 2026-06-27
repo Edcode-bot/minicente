@@ -101,6 +101,30 @@ const en = {
   unlock_perk3: "Qualify for small loans",
   unlock_cta: "Get started",
   unlock_skip: "I'll verify later",
+
+  // OTP email-magic-link note
+  otp_email_note: "Click the link we emailed to",
+  otp_check_inbox: "Then come back and tap the button below",
+  otp_dev_btn: "I clicked the link → Continue",
+
+  // Home screen
+  recent_activity: "Recent",
+  no_transactions: "No payments yet",
+  no_transactions_sub: "Your first payment will appear here",
+  kind_bill: "Bill payment",
+  kind_airtime: "Airtime",
+  kind_send: "Sent",
+  kind_receive: "Received",
+  kind_savings: "Savings",
+
+  // Me screen
+  sign_out: "Sign out",
+  referral_code: "Referral code",
+  share: "Share",
+  account: "Account",
+  level: "Level",
+  verified: "Verified",
+  kyc_unverified: "Unverified",
 } as const;
 
 export type I18nKey = keyof typeof en;
@@ -191,6 +215,27 @@ const lug: Record<I18nKey, string> = {
   unlock_perk3: "Ndirizibwa okuguza ssente ntono",
   unlock_cta: "Tandika",
   unlock_skip: "Ndikakilanga nyuma",
+
+  otp_email_note: "Nyiga omukutu gwe tuweereza eri",
+  otp_check_inbox: "Naddamu ejja onasiibe buto wansi",
+  otp_dev_btn: "Nyiga omukutu → Endeera",
+
+  recent_activity: "Emikolere",
+  no_transactions: "Tewali ssente eziseerezeddwa",
+  no_transactions_sub: "Okuseereza kwo okusookerwamu kunaaboneka wano",
+  kind_bill: "Okusaasaana",
+  kind_airtime: "Airtime",
+  kind_send: "Waseereza",
+  kind_receive: "Wagezaako",
+  kind_savings: "Okutereka",
+
+  sign_out: "Fuluma",
+  referral_code: "Koodi y'okusindika",
+  share: "Gawana",
+  account: "Akawunti",
+  level: "Entikko",
+  verified: "Kakasiddwa",
+  kyc_unverified: "Tekakasiddwa",
 };
 
 // ─── Context & provider ───────────────────────────────────────────────────────

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { LanguageProvider, useT, type I18nKey } from "@/lib/i18n";
+import { createClient } from "@/lib/supabase/client";
 
 type TFn = (k: I18nKey) => string;
 
@@ -245,6 +246,10 @@ function OnboardingInner() {
   const [biometric, setBiometric] = useState(false);
   const [winChoice, setWinChoice] = useState<WinChoice | null>(null);
   const [countdown, setCountdown] = useState(24);
+  const [phoneEmail, setPhoneEmail] = useState("");
+  const [firstWinRef, setFirstWinRef] = useState("");
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const phoneRaw = phone.replace(/\D/g, "");
   const displayPhone = "+256 " + formatUgPhone(phoneRaw);
@@ -259,6 +264,36 @@ function OnboardingInner() {
     stage === "phone" || stage === "otp" || stage === "pin";
 
   // ── Effects ────────────────────────────────────────────────────────────────
+
+  // On mount: resume if session already exists (e.g. user returned after clicking magic link)
+  useEffect(() => {
+    const supabase = createClient();
+    void (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("onboarded, pin_set")
+        .eq("id", user.id)
+        .single();
+      if (!profile) return;
+      if (profile.onboarded) { router.replace("/"); return; }
+      if (profile.pin_set) { setStage("gift"); return; }
+      setStage("pin");
+    })();
+  }, [router]);
+
+  // Listen for magic-link sign-in while on OTP screen
+  useEffect(() => {
+    if (stage !== "otp") return;
+    const supabase = createClient();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event) => {
+        if (event === "SIGNED_IN") setStage("pin");
+      }
+    );
+    return () => subscription.unsubscribe();
+  }, [stage]);
 
   // OTP countdown
   useEffect(() => {
@@ -279,6 +314,17 @@ function OnboardingInner() {
     }
     if (pinPhase === "confirm" && confirmPin.length === 4) {
       if (confirmPin === createPin) {
+        // Persist pin_set + language to profile (best-effort)
+        void (async () => {
+          const supabase = createClient();
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            await supabase
+              .from("profiles")
+              .update({ pin_set: true, language: lang })
+              .eq("id", user.id);
+          }
+        })();
         const id = setTimeout(() => setStage("gift"), 350);
         return () => clearTimeout(id);
       }
@@ -289,7 +335,7 @@ function OnboardingInner() {
       }, 750);
       return () => clearTimeout(id);
     }
-  }, [createPin, confirmPin, pinPhase]);
+  }, [createPin, confirmPin, pinPhase, lang]);
 
   // Processing auto-advance
   useEffect(() => {
@@ -312,19 +358,76 @@ function OnboardingInner() {
   }, [stage]);
 
   const complete = useCallback(() => {
-    markOnboarded();
-    router.replace("/");
+    void (async () => {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase
+          .from("profiles")
+          .update({ onboarded: true })
+          .eq("id", user.id);
+      }
+      markOnboarded();
+      router.replace("/");
+    })();
   }, [router]);
 
   const handleContinue = useCallback(() => {
     if (stage === "language") { setStage("phone"); return; }
-    if (stage === "phone") { setStage("otp"); return; }
+
+    if (stage === "phone") {
+      // Send Supabase magic-link (email derived from phone)
+      setIsSubmitting(true);
+      setAuthError(null);
+      const email = `mc-${phoneRaw}@minicente.app`;
+      setPhoneEmail(email);
+      void (async () => {
+        const supabase = createClient();
+        const { error } = await supabase.auth.signInWithOtp({
+          email,
+          options: {
+            emailRedirectTo: `${window.location.origin}/auth/callback`,
+            shouldCreateUser: true,
+            data: { phone: `+256${phoneRaw}`, full_name: "Friend" },
+          },
+        });
+        setIsSubmitting(false);
+        if (error) { setAuthError(error.message); return; }
+        setStage("otp");
+      })();
+      return;
+    }
+
     if (stage === "otp") { setStage("pin"); return; }
     if (stage === "gift") { setStage("firstwin"); return; }
-    if (stage === "firstwin") { setStage("processing"); return; }
+
+    if (stage === "firstwin" && winChoice) {
+      setStage("processing");
+      void (async () => {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        const ref = `MC-1ST-${winChoice.toUpperCase()}-${Date.now().toString(36).toUpperCase()}`;
+        if (user) {
+          await supabase.from("transactions").insert({
+            user_id: user.id,
+            kind: winChoice === "yaka" ? "bill" : "airtime",
+            status: "success",
+            amount_minor: 1000,
+            fee_minor: 0,
+            currency: "UGX",
+            counterparty: winChoice === "yaka" ? "YAKA Uganda" : `+256${phoneRaw}`,
+            reference: ref,
+            meta: { gift: true, first_win: true },
+          });
+        }
+        setFirstWinRef(ref);
+      })();
+      return;
+    }
+
     if (stage === "success") { setStage("unlock"); return; }
     if (stage === "unlock") { complete(); return; }
-  }, [stage, complete]);
+  }, [stage, phoneRaw, winChoice, complete]);
 
   // PIN helpers
   const handlePinDigit = useCallback(
@@ -350,8 +453,8 @@ function OnboardingInner() {
   const showContinue = !["pin", "processing"].includes(stage);
 
   const canContinue: boolean = (() => {
-    if (stage === "phone") return phoneRaw.length === 9;
-    if (stage === "otp") return otp.every((d) => d !== "");
+    if (stage === "phone") return phoneRaw.length === 9 && !isSubmitting;
+    if (stage === "otp") return true; // real auth is via magic link; boxes are informational
     if (stage === "firstwin") return winChoice !== null;
     return true;
   })();
@@ -391,6 +494,8 @@ function OnboardingInner() {
           <StagePhone
             phone={phone}
             onChange={(v) => setPhone(v)}
+            error={authError}
+            isSubmitting={isSubmitting}
             t={t}
           />
         )}
@@ -399,8 +504,15 @@ function OnboardingInner() {
             otp={otp}
             onChange={setOtp}
             displayPhone={displayPhone}
+            phoneEmail={phoneEmail}
             countdown={countdown}
             onResend={() => setCountdown(24)}
+            onDevContinue={async () => {
+              const supabase = createClient();
+              const { data: { user } } = await supabase.auth.getUser();
+              if (user) { setStage("pin"); }
+              else { alert("Please click the magic link in your email first, then press this button."); }
+            }}
             t={t}
           />
         )}
@@ -426,7 +538,7 @@ function OnboardingInner() {
         )}
         {stage === "processing" && <StageProcessing t={t} />}
         {stage === "success" && (
-          <StageSuccess winChoice={winChoice ?? "yaka"} t={t} />
+          <StageSuccess winChoice={winChoice ?? "yaka"} txnRef={firstWinRef} t={t} />
         )}
         {stage === "unlock" && (
           <StageUnlock onSkip={complete} t={t} />
@@ -543,10 +655,14 @@ function StageLanguage({
 function StagePhone({
   phone,
   onChange,
+  error,
+  isSubmitting,
   t,
 }: {
   phone: string;
   onChange: (v: string) => void;
+  error: string | null;
+  isSubmitting: boolean;
   t: TFn;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -593,6 +709,16 @@ function StagePhone({
           {t("phone_ussd_hint")}
         </p>
       </div>
+
+      {isSubmitting && (
+        <div className="flex items-center gap-2 mt-3">
+          <div className="w-4 h-4 rounded-full border-2 border-line border-t-primary animate-spin" />
+          <p className="text-[12px] text-ink3">Sending sign-in link…</p>
+        </div>
+      )}
+      {error && (
+        <p className="text-[12px] text-danger mt-3">{error}</p>
+      )}
     </div>
   );
 }
@@ -603,15 +729,19 @@ function StageOtp({
   otp,
   onChange,
   displayPhone,
+  phoneEmail,
   countdown,
   onResend,
+  onDevContinue,
   t,
 }: {
   otp: string[];
   onChange: (v: string[]) => void;
   displayPhone: string;
+  phoneEmail: string;
   countdown: number;
   onResend: () => void;
+  onDevContinue: () => Promise<void>;
   t: TFn;
 }) {
   return (
@@ -619,10 +749,20 @@ function StageOtp({
       <h1 className="font-display text-[24px] font-bold text-ink leading-tight mb-2">
         {t("otp_title")}
       </h1>
-      <p className="text-[14px] text-ink2 leading-relaxed mb-8">
+      <p className="text-[14px] text-ink2 leading-relaxed mb-1">
         {t("otp_sent")}{" "}
         <span className="font-semibold text-ink">{displayPhone}</span>
       </p>
+      {phoneEmail && (
+        <div className="bg-soft border border-line rounded-button px-3 py-2.5 mb-6">
+          <p className="text-[12px] text-ink3">{t("otp_email_note")}</p>
+          <p className="text-[12px] font-mono font-semibold text-ink break-all">
+            {phoneEmail}
+          </p>
+          <p className="text-[11px] text-ink3 mt-1">{t("otp_check_inbox")}</p>
+        </div>
+      )}
+      {!phoneEmail && <div className="mb-8" />}
 
       <OtpBoxes value={otp} onChange={onChange} />
 
@@ -645,10 +785,20 @@ function StageOtp({
         )}
       </div>
 
-      {/* Dev hint */}
-      <p className="text-center text-[11px] text-ink3 mt-3 font-mono">
-        ({t("otp_demo")})
-      </p>
+      {/* Dev shortcut — only in development builds */}
+      {process.env.NODE_ENV === "development" && (
+        <div className="mt-6 border-t border-line pt-4">
+          <p className="text-[10px] text-ink3 text-center mb-2 font-mono">
+            DEV · ({t("otp_demo")})
+          </p>
+          <button
+            onClick={() => void onDevContinue()}
+            className="w-full text-[12px] font-semibold text-ink2 border border-line rounded-button py-2.5 hover:bg-soft transition-colors"
+          >
+            {t("otp_dev_btn")}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -861,15 +1011,17 @@ function StageProcessing({ t }: { t: TFn }) {
 
 function StageSuccess({
   winChoice,
+  txnRef,
   t,
 }: {
   winChoice: WinChoice;
+  txnRef: string;
   t: TFn;
 }) {
   const sub =
     winChoice === "yaka" ? t("success_sub_yaka") : t("success_sub_airtime");
   const timeLabel = winChoice === "yaka" ? "4 seconds" : "2 seconds";
-  const refCode = winChoice === "yaka" ? "MC-1ST-WIN-YAKA" : "MC-1ST-WIN-AIR";
+  const refCode = txnRef || (winChoice === "yaka" ? "MC-1ST-WIN-YAKA" : "MC-1ST-WIN-AIR");
 
   return (
     <div className="px-5 pt-8 pb-4">
