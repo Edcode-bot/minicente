@@ -1,24 +1,22 @@
 import type { Metadata, Viewport } from "next";
 import {
-  Familjen_Grotesk,
-  Plus_Jakarta_Sans,
+  Inter,
+  Bricolage_Grotesque,
   JetBrains_Mono,
 } from "next/font/google";
 import "@rainbow-me/rainbowkit/styles.css";
 import "./globals.css";
 import { Providers } from "./providers";
-import { TopNav } from "@/components/TopNav";
-import { BottomNav } from "@/components/BottomNav";
 
-const familjenGrotesk = Familjen_Grotesk({
+const inter = Inter({
   subsets: ["latin"],
-  variable: "--font-display",
+  variable: "--font-sans",
   display: "swap",
 });
 
-const plusJakartaSans = Plus_Jakarta_Sans({
+const bricolage = Bricolage_Grotesque({
   subsets: ["latin"],
-  variable: "--font-sans",
+  variable: "--font-display",
   display: "swap",
 });
 
@@ -29,23 +27,19 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Minicente — Fintech for Emerging Markets",
-  description:
-    "Stablecoins, savings, remittance, loans, and agency banking in one mobile-first app.",
+  title: "Minicente — Money that always works",
+  description: "Simple, safe mobile money for Uganda.",
   manifest: "/manifest.webmanifest",
-  icons: {
-    icon: "/icon.svg",
-    apple: "/icon.svg",
-  },
+  icons: { icon: "/icon.svg", apple: "/icon.svg" },
   appleWebApp: {
     capable: true,
-    statusBarStyle: "black-translucent",
+    statusBarStyle: "default",
     title: "Minicente",
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0c0e0b",
+  themeColor: "#ffffff",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -58,18 +52,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="bg-bg2">
+    <html lang="en">
       <body
-        className={`${familjenGrotesk.variable} ${plusJakartaSans.variable} ${jetbrainsMono.variable} font-sans bg-bg text-ink antialiased`}
+        className={`${inter.variable} ${bricolage.variable} ${jetbrainsMono.variable} font-sans antialiased`}
       >
-        <Providers>
-          {/* Centered mobile container with side borders */}
-          <div className="mx-auto max-w-[480px] min-h-screen bg-bg border-x border-line relative">
-            <TopNav />
-            <main className="pb-[88px]">{children}</main>
-            <BottomNav />
-          </div>
-        </Providers>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

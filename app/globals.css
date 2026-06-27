@@ -14,12 +14,11 @@
   }
 
   body {
-    background-color: #0c0e0b;
-    color: #f0f2ec;
+    background-color: #f6f8f6;
+    color: #0e1512;
     font-feature-settings: "ss01", "ss02", "cv01";
   }
 
-  /* Respect reduced motion */
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
@@ -41,7 +40,10 @@
     display: none;
   }
 
-  .safe-bottom {
-    padding-bottom: env(safe-area-inset-bottom, 0px);
+  /* Tabular money amounts — use class="money" on any amount span */
+  .money {
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    font-family: var(--font-sans);
   }
 }

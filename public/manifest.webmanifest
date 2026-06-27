@@ -1,11 +1,11 @@
 {
-  "name": "Minicente",
+  "name": "Minicente — Money that always works",
   "short_name": "Minicente",
-  "description": "Mobile-first fintech for emerging markets",
+  "description": "Simple, safe mobile money for Uganda",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0c0e0b",
-  "theme_color": "#0c0e0b",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
   "orientation": "portrait-primary",
   "categories": ["finance"],
   "icons": [

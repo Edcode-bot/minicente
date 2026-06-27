@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 
 const TABS = [
   {
-    href: "/",
+    href: "/investor",
     label: "Home",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
@@ -15,7 +15,7 @@ const TABS = [
     ),
   },
   {
-    href: "/savings",
+    href: "/investor/savings",
     label: "Savings",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
@@ -25,7 +25,7 @@ const TABS = [
     ),
   },
   {
-    href: "/agency",
+    href: "/investor/agency",
     label: "Agent",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
@@ -35,7 +35,7 @@ const TABS = [
     ),
   },
   {
-    href: "/loans",
+    href: "/investor/loans",
     label: "Loans",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
@@ -46,7 +46,7 @@ const TABS = [
     ),
   },
   {
-    href: "/more",
+    href: "/investor/more",
     label: "More",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
@@ -62,17 +62,21 @@ export function BottomNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] z-50 bg-bg/95 backdrop-blur-md border-t border-line">
+    <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] z-50 bg-inv-bg/95 backdrop-blur-md border-t border-inv-line">
       <div className="flex items-center justify-around h-[68px] px-1">
         {TABS.map((tab) => {
           const isActive =
-            tab.href === "/" ? pathname === "/" : pathname.startsWith(tab.href);
+            tab.href === "/investor"
+              ? pathname === "/investor"
+              : pathname.startsWith(tab.href);
           return (
             <Link
               key={tab.href}
               href={tab.href}
               className={`flex flex-col items-center gap-1 flex-1 py-2 transition-colors duration-150 ${
-                isActive ? "text-lime" : "text-ink3 hover:text-ink2"
+                isActive
+                  ? "text-inv-lime"
+                  : "text-inv-ink3 hover:text-inv-ink2"
               }`}
             >
               {tab.icon}
@@ -83,7 +87,6 @@ export function BottomNav() {
           );
         })}
       </div>
-      {/* Safe area for devices with home indicator */}
       <div className="h-[env(safe-area-inset-bottom,0px)]" />
     </nav>
   );
