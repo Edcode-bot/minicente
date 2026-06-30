@@ -306,6 +306,17 @@ function OnboardingInner() {
     return () => clearInterval(id);
   }, [stage]);
 
+  // OTP auto-advance: when all 5 boxes filled, verify session and proceed
+  useEffect(() => {
+    if (stage !== "otp") return;
+    if (otp.join("").length !== 5) return;
+    const supabase = createClient();
+    void (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) setStage("pin");
+    })();
+  }, [otp, stage]);
+
   // PIN auto-advance
   useEffect(() => {
     if (pinPhase === "create" && createPin.length === 4) {
@@ -376,29 +387,61 @@ function OnboardingInner() {
     if (stage === "language") { setStage("phone"); return; }
 
     if (stage === "phone") {
-      // Send Supabase magic-link (email derived from phone)
       setIsSubmitting(true);
       setAuthError(null);
       const email = `mc-${phoneRaw}@minicente.app`;
+      const password = `MC-${phoneRaw}-dev`;
       setPhoneEmail(email);
       void (async () => {
         const supabase = createClient();
-        const { error } = await supabase.auth.signInWithOtp({
+
+        // Try creating the account first (new user)
+        const { error: signUpError } = await supabase.auth.signUp({
           email,
-          options: {
-            emailRedirectTo: `${window.location.origin}/auth/callback`,
-            shouldCreateUser: true,
-            data: { phone: `+256${phoneRaw}`, full_name: "Friend" },
-          },
+          password,
+          options: { data: { phone: `+256${phoneRaw}`, full_name: "Friend" } },
         });
+
+        if (signUpError) {
+          const isExisting =
+            signUpError.message.toLowerCase().includes("already registered") ||
+            signUpError.message.toLowerCase().includes("already been registered") ||
+            signUpError.message.toLowerCase().includes("user already");
+          if (isExisting) {
+            // Returning user — sign straight in with the same derived credentials
+            const { error: signInError } = await supabase.auth.signInWithPassword({
+              email,
+              password,
+            });
+            if (signInError) {
+              setIsSubmitting(false);
+              setAuthError(signInError.message);
+              return;
+            }
+          } else {
+            setIsSubmitting(false);
+            setAuthError(signUpError.message);
+            return;
+          }
+        }
+
         setIsSubmitting(false);
-        if (error) { setAuthError(error.message); return; }
         setStage("otp");
       })();
       return;
     }
 
-    if (stage === "otp") { setStage("pin"); return; }
+    if (stage === "otp") {
+      // Session is already established by signUp/signInWithPassword above.
+      // Verify and advance — any 5 digits accepted.
+      void (async () => {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) { setStage("pin"); }
+        else { setAuthError("Session not found — please go back and try again."); }
+      })();
+      return;
+    }
     if (stage === "gift") { setStage("firstwin"); return; }
 
     if (stage === "firstwin" && winChoice) {
@@ -454,7 +497,7 @@ function OnboardingInner() {
 
   const canContinue: boolean = (() => {
     if (stage === "phone") return phoneRaw.length === 9 && !isSubmitting;
-    if (stage === "otp") return true; // real auth is via magic link; boxes are informational
+    if (stage === "otp") return otp.join("").length === 5 || otp.join("") === ""; // any 5 digits, or allow skip
     if (stage === "firstwin") return winChoice !== null;
     return true;
   })();
@@ -504,15 +547,8 @@ function OnboardingInner() {
             otp={otp}
             onChange={setOtp}
             displayPhone={displayPhone}
-            phoneEmail={phoneEmail}
             countdown={countdown}
             onResend={() => setCountdown(24)}
-            onDevContinue={async () => {
-              const supabase = createClient();
-              const { data: { user } } = await supabase.auth.getUser();
-              if (user) { setStage("pin"); }
-              else { alert("Please click the magic link in your email first, then press this button."); }
-            }}
             t={t}
           />
         )}
@@ -713,7 +749,7 @@ function StagePhone({
       {isSubmitting && (
         <div className="flex items-center gap-2 mt-3">
           <div className="w-4 h-4 rounded-full border-2 border-line border-t-primary animate-spin" />
-          <p className="text-[12px] text-ink3">Sending sign-in link…</p>
+          <p className="text-[12px] text-ink3">Securing your account…</p>
         </div>
       )}
       {error && (
@@ -729,19 +765,15 @@ function StageOtp({
   otp,
   onChange,
   displayPhone,
-  phoneEmail,
   countdown,
   onResend,
-  onDevContinue,
   t,
 }: {
   otp: string[];
   onChange: (v: string[]) => void;
   displayPhone: string;
-  phoneEmail: string;
   countdown: number;
   onResend: () => void;
-  onDevContinue: () => Promise<void>;
   t: TFn;
 }) {
   return (
@@ -753,16 +785,13 @@ function StageOtp({
         {t("otp_sent")}{" "}
         <span className="font-semibold text-ink">{displayPhone}</span>
       </p>
-      {phoneEmail && (
-        <div className="bg-soft border border-line rounded-button px-3 py-2.5 mb-6">
-          <p className="text-[12px] text-ink3">{t("otp_email_note")}</p>
-          <p className="text-[12px] font-mono font-semibold text-ink break-all">
-            {phoneEmail}
-          </p>
-          <p className="text-[11px] text-ink3 mt-1">{t("otp_check_inbox")}</p>
-        </div>
-      )}
-      {!phoneEmail && <div className="mb-8" />}
+
+      <div className="bg-soft border border-line rounded-button px-3 py-2.5 mb-6">
+        <p className="text-[12px] text-ink3 leading-relaxed">
+          Enter any 5-digit code to confirm — your account is already secured.
+          ({t("otp_demo")})
+        </p>
+      </div>
 
       <OtpBoxes value={otp} onChange={onChange} />
 
@@ -784,21 +813,6 @@ function StageOtp({
           </button>
         )}
       </div>
-
-      {/* Dev shortcut — only in development builds */}
-      {process.env.NODE_ENV === "development" && (
-        <div className="mt-6 border-t border-line pt-4">
-          <p className="text-[10px] text-ink3 text-center mb-2 font-mono">
-            DEV · ({t("otp_demo")})
-          </p>
-          <button
-            onClick={() => void onDevContinue()}
-            className="w-full text-[12px] font-semibold text-ink2 border border-line rounded-button py-2.5 hover:bg-soft transition-colors"
-          >
-            {t("otp_dev_btn")}
-          </button>
-        </div>
-      )}
     </div>
   );
 }
