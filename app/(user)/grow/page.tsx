@@ -6,6 +6,9 @@ import { createClient } from "@/lib/supabase/client";
 import { processPayment } from "@/lib/payments";
 import { formatUGX } from "@/lib/types";
 import type { SavingsPot, Chama, ChamaMember, AutoCadence } from "@/lib/types";
+import { useLevel } from "@/lib/hooks/useLevel";
+import { calcLoanEligibility } from "@/lib/hooks/useLoanEligibility";
+import Link from "next/link";
 
 type TFn = (k: I18nKey) => string;
 
@@ -159,6 +162,7 @@ function AmountInput({ value, onChange }: { value: string; onChange: (v: string)
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function GrowPage() {
   const { t } = useT();
+  const level = useLevel();
   const [pots, setPots] = useState<SavingsPot[]>([]);
   const [members, setMembers] = useState<MemberWithChama[]>([]);
   const [allChamas, setAllChamas] = useState<Chama[]>([]);
@@ -339,6 +343,44 @@ export default function GrowPage() {
           />
         ))
       )}
+
+      {/* ── Loan card ───────────────────────────────────────── */}
+      {!level.loading && (() => {
+        const totalSavings = pots.reduce((s, p) => s + p.saved_minor, 0);
+        const loan = calcLoanEligibility(level.txnCount, totalSavings);
+        if (loan.eligible) {
+          return (
+            <div className="rounded-card border border-accent/20 bg-accent/5 p-4 mt-4 mb-0">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1">
+                  <p className="text-[13px] font-semibold text-ink">{t("loan_card_title")}</p>
+                  <p className="money text-[20px] font-bold text-ink mt-1">{formatUGX(loan.amountMinor)}</p>
+                  <p className="text-[11px] text-ink3 mt-0.5">{t("loan_card_sub")}</p>
+                </div>
+                <Link
+                  href="/grow/loan"
+                  className="rounded-button bg-primary text-white text-[12px] font-semibold px-4 py-2 whitespace-nowrap"
+                >
+                  {t("loan_card_view")}
+                </Link>
+              </div>
+            </div>
+          );
+        }
+        return (
+          <div className="rounded-card border border-line bg-soft p-4 mt-4 mb-0">
+            <div className="flex items-start gap-3">
+              <span className="text-2xl flex-shrink-0">🔒</span>
+              <div>
+                <p className="text-[13px] font-semibold text-ink">
+                  {t("loan_not_eligible").replace("{n}", String(loan.paymentsNeeded))}
+                </p>
+                <p className="text-[12px] text-ink3 mt-0.5">{t("loan_not_eligible_sub")}</p>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── Chama ───────────────────────────────────────────── */}
       <div className="flex items-center justify-between mt-4 mb-2">

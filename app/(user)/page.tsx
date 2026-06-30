@@ -7,7 +7,12 @@ import { useWallet } from "@/lib/hooks/useWallet";
 import { useTransactions } from "@/lib/hooks/useTransactions";
 import { usePlatformStats } from "@/lib/hooks/usePlatformStats";
 import { formatUGX } from "@/lib/types";
-import type { Transaction } from "@/lib/types";
+import type { Transaction, SavingsPot } from "@/lib/types";
+import { useLevel } from "@/lib/hooks/useLevel";
+import { calcLoanEligibility } from "@/lib/hooks/useLoanEligibility";
+import { computeNudge } from "@/lib/hooks/useNudge";
+import { createClient } from "@/lib/supabase/client";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 
 function txnIcon(kind: string) {
@@ -131,24 +136,37 @@ export default function HomePage() {
   const { t } = useT();
   const { profile } = useProfile();
   const { wallet } = useWallet();
-  const { txns, loading: txnsLoading } = useTransactions(5);
+  const { txns, loading: txnsLoading } = useTransactions(20);
   const { stats } = usePlatformStats();
+  const level = useLevel();
+  const [pots, setPots] = useState<SavingsPot[]>([]);
+  const [chamaNames, setChamaNames] = useState<string[]>([]);
+  const [loanApplied, setLoanApplied] = useState(false);
+
+  useEffect(() => {
+    const supabase = createClient();
+    void (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const [{ data: potsData }, { data: membersData }, { data: loanData }] = await Promise.all([
+        supabase.from("savings_pots").select("*").eq("user_id", user.id),
+        supabase.from("chama_members").select("*, chamas(name)").eq("user_id", user.id),
+        supabase.from("transactions").select("id").eq("user_id", user.id).eq("kind", "loan").limit(1),
+      ]);
+      setPots((potsData ?? []) as SavingsPot[]);
+      const names = (membersData ?? []).map((m: { chamas: { name: string } | null }) => m.chamas?.name ?? "").filter(Boolean);
+      setChamaNames(names);
+      setLoanApplied(Array.isArray(loanData) && loanData.length > 0);
+    })();
+  }, []);
 
   const firstName = profile?.full_name?.split(" ")[0] ?? "Friend";
-
-  const lastBillTxn = txns.find((tx) => ["bill", "yaka", "water"].includes(tx.kind));
-  const daysSinceLastBill = lastBillTxn
-    ? Math.floor((Date.now() - new Date(lastBillTxn.created_at).getTime()) / 86400000)
-    : 999;
-  const showTopupNudge = daysSinceLastBill >= 25;
-
   const lastRefund = txns.find((tx) => tx.kind === "refund");
-
-  const feesSavedMinor = txns
-    .filter((tx) => tx.status === "success" && tx.kind !== "refund")
-    .reduce((sum, tx) => sum + Math.round(tx.amount_minor * 0.01), 0);
-
   const successRateLabel = stats ? `${stats.success_rate.toFixed(1)}%` : "99.4%";
+
+  const totalSavings = pots.reduce((s, p) => s + p.saved_minor, 0);
+  const loan = calcLoanEligibility(level.txnCount, totalSavings);
+  const nudge = computeNudge({ txns, pots, chamaNames, loan, loanEverApplied: loanApplied });
 
   return (
     <div className="pb-4">
@@ -170,15 +188,13 @@ export default function HomePage() {
 
       {/* Nudge card */}
       <div className="mx-4 mt-3 rounded-card border border-line bg-card shadow-subtle p-4 flex items-center gap-3">
-        <span className="text-2xl flex-shrink-0">{showTopupNudge ? "💡" : "🌱"}</span>
-        <p className="text-[13px] text-ink flex-1 leading-relaxed">
-          {showTopupNudge ? t("nudge_topup_title") : t("nudge_save_title")}
-        </p>
+        <span className="text-2xl flex-shrink-0">{nudge.icon}</span>
+        <p className="text-[13px] text-ink flex-1 leading-relaxed">{nudge.title}</p>
         <Link
-          href={showTopupNudge ? "/pay/yaka" : "/grow"}
+          href={nudge.href}
           className="text-[12px] font-semibold text-primary whitespace-nowrap flex-shrink-0"
         >
-          {showTopupNudge ? t("nudge_topup_cta") : t("nudge_save_cta")}
+          {nudge.cta}
         </Link>
       </div>
 
@@ -216,16 +232,18 @@ export default function HomePage() {
       )}
 
       {/* Fees saved */}
-      <div className="mx-4 mt-3 rounded-card border border-line bg-card shadow-subtle p-4 flex items-center gap-3">
-        <span className="text-2xl flex-shrink-0">💰</span>
-        <div className="flex-1">
-          <p className="text-[12px] text-ink3">{t("fees_saved_title")}</p>
-          <p className="money text-[18px] text-ink font-semibold">{formatUGX(feesSavedMinor)}</p>
+      {loan.eligible && (
+        <div className="mx-4 mt-3 rounded-card border border-accent/20 bg-accent/5 p-4 flex items-center gap-3">
+          <span className="text-2xl flex-shrink-0">🏦</span>
+          <div className="flex-1">
+            <p className="text-[12px] text-ink3">{t("loan_card_title")}</p>
+            <p className="money text-[18px] text-ink font-semibold">{formatUGX(loan.amountMinor)}</p>
+          </div>
+          <Link href="/grow/loan" className="text-[12px] font-semibold text-primary whitespace-nowrap">
+            {t("loan_card_view")}
+          </Link>
         </div>
-        <Link href="/grow" className="text-[12px] font-semibold text-primary whitespace-nowrap">
-          {t("fees_saved_cta")}
-        </Link>
-      </div>
+      )}
 
       {/* Transactions */}
       <div className="mx-4 mt-4">

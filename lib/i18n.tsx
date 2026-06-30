@@ -117,6 +117,67 @@ const en = {
   kind_receive: "Received",
   kind_savings: "Savings",
 
+  // Level system
+  level_card_title: "Your Minicente Level",
+  level_starter: "Starter",
+  level_silver: "Silver",
+  level_gold: "Gold",
+  level_platinum: "Platinum",
+  level_progress: "{n} more payments to unlock {level}",
+  level_unlock_hint: "Unlocks at {level} — {perks}",
+  level_maxed: "You've reached the top level!",
+
+  // Loan
+  loan_card_title: "You qualify for a small loan",
+  loan_card_sub: "small loan, repay over 30 days",
+  loan_card_view: "View",
+  loan_not_eligible: "Pay {n} more bills to unlock a small loan",
+  loan_not_eligible_sub: "Keep using Minicente to build your eligibility",
+  loan_terms_title: "Small loan",
+  loan_amount_label: "Amount",
+  loan_term_label: "Repay in",
+  loan_term_value: "30 days",
+  loan_fee_label: "Fee",
+  loan_fee_value: "UGX 5,000 flat",
+  loan_how: "Repaid automatically from your balance when due",
+  loan_apply: "Apply",
+  loan_applied_title: "Application received",
+  loan_applied_sub:
+    "We'll review and credit your balance — usually within 24 hours. We'll notify you.",
+  loan_apply_note:
+    "No surprises — you'll see the exact repayment before we release anything.",
+
+  // Nudges
+  nudge_pot_title: "Add to your {name} — you're {pct}% there",
+  nudge_pot_cta: "Add now",
+  nudge_loan_title: "You qualify for a small loan — {amount}",
+  nudge_loan_cta: "View",
+  nudge_fees_title: "You've saved {amount} on fees this month — move it to savings?",
+  nudge_fees_cta: "Save it",
+  nudge_chama_title: "Chama contribution due — {name}",
+  nudge_chama_cta: "Contribute",
+
+  // Safety page
+  safety_title: "Why Minicente is safe",
+  safety_licensed_title: "Your money is held at a licensed bank",
+  safety_licensed_body:
+    "Kept in a regulated trust account — never lent out without your say.",
+  safety_refund_title: "Automatic refunds",
+  safety_refund_body:
+    "If a payment doesn't go through, it reverses to you in under 30 seconds — no calls needed.",
+  safety_bou_title: "Licensed by Bank of Uganda",
+  safety_bou_body:
+    "PSP Licence [000-000]. Verify us on the BoU public register at bou.or.ug.",
+  safety_support_title: "A person always answers",
+  safety_support_body:
+    "Call 0800-XXX-XXX free, in Luganda or English, 7 days a week. No bots for urgent issues.",
+  safety_how_refunds: "How refunds work",
+  safety_step1: "Payment is attempted and secured with the bank",
+  safety_step2: "If it fails, we detect it within seconds",
+  safety_step3: "Your money is back in your balance automatically",
+  safety_rate_label: "Payment success rate (last 30 days)",
+  safety_guarantee: "Every payment is guaranteed — or your money back.",
+
   // Grow — pots
   grow_headline: "Grow your money",
   grow_sub: "Small steps, on your terms. Withdraw anytime, no penalty.",
@@ -347,6 +408,63 @@ const lug: Record<I18nKey, string> = {
   kind_send: "Waseereza",
   kind_receive: "Wagezaako",
   kind_savings: "Okutereka",
+
+  level_card_title: "Entikko yo y'e Minicente",
+  level_starter: "Omutandisi",
+  level_silver: "Fedha",
+  level_gold: "Zaabu",
+  level_platinum: "Platinum",
+  level_progress: "Ssasula {n} nate okuggula {level}",
+  level_unlock_hint: "Egulawo ku {level} — {perks}",
+  level_maxed: "Ogezaako entikko ey'okumaliriza!",
+
+  loan_card_title: "Oyetegese okuguza ssente ntono",
+  loan_card_sub: "guza ssente ntono, ozireeta mu nnaku 30",
+  loan_card_view: "Laba",
+  loan_not_eligible: "Sasula bbiili {n} nate okuggula nguzi entono",
+  loan_not_eligible_sub: "Endeera okozesa Minicente okuzimba obuyinza bwo",
+  loan_terms_title: "Nguzi ntono",
+  loan_amount_label: "Omuwendo",
+  loan_term_label: "Oreeta mu",
+  loan_term_value: "Nnaku 30",
+  loan_fee_label: "Omusaasaane",
+  loan_fee_value: "UGX 5,000 wamu",
+  loan_how: "Esubulwa wenyini okuva ku ssente zo mu kiseera ekiteeka",
+  loan_apply: "Saba",
+  loan_applied_title: "Okusaba kwagezaako",
+  loan_applied_sub:
+    "Tuliddamu era tubaliriza ssente zo — bulijjo mu saawa 24. Tunaakubulira.",
+  loan_apply_note:
+    "Tewali bitali biragwa — olilaba okuzireeta nga teri ekinaakuzirisibwa.",
+
+  nudge_pot_title: "Yongeza ku {name} — oli ku {pct}% gy'ogenda",
+  nudge_pot_cta: "Yongeza kati",
+  nudge_loan_title: "Oyetegese okuguza ssente ntono — {amount}",
+  nudge_loan_cta: "Laba",
+  nudge_fees_title: "Wotereka {amount} ku biwereza buno mwezi — tereka?",
+  nudge_fees_cta: "Tereka",
+  nudge_chama_title: "Ekiseera ky'okutera mu chama — {name}",
+  nudge_chama_cta: "Tera",
+
+  safety_title: "Lwaki Minicente esirinzika",
+  safety_licensed_title: "Ssente zo zisinziirizibwa mu banki eyateekebwawo",
+  safety_licensed_body:
+    "Zisinziirizibwa mu akawunti akeera — teziwereddwako wewutyo nga tokkiriza.",
+  safety_refund_title: "Okusubula kwennyini",
+  safety_refund_body:
+    "Singa okusasula tekugenze bulungi, osubulibwa mu ssekunde 30 — tewali kukoona.",
+  safety_bou_title: "Waakiririzibwa Banki ya Uganda",
+  safety_bou_body:
+    "Laisiisi ya PSP [000-000]. Kakasa ku rejista ya BoU ku bou.or.ug.",
+  safety_support_title: "Omu bulijjo addamu",
+  safety_support_body:
+    "Koona 0800-XXX-XXX bwerere, mu Luganda oba Olungereza, ennaku 7 mu wiiki.",
+  safety_how_refunds: "Engeri okusubula gye kukolamu",
+  safety_step1: "Okusasula kukozesebwa era kukuumibwa n'omulamwa",
+  safety_step2: "Singa kigaana, tukiraba mu ssekunde ntono",
+  safety_step3: "Ssente zo zisubulibwa ku ssente zo wenyini",
+  safety_rate_label: "Enteekateeka y'okusasula (ennaku 30 eziyise)",
+  safety_guarantee: "Buli okusasula kusirinzikizibwa — oba ssente zo zisubulibwa.",
 
   grow_headline: "Kulungia ssente zo",
   grow_sub: "Amagezi manootono, ku ngeri yo. Ggya buli kiseera, tewali mulango.",

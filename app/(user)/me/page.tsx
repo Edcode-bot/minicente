@@ -2,12 +2,15 @@
 
 import { useT } from "@/lib/i18n";
 import { useProfile } from "@/lib/hooks/useProfile";
+import { useLevel } from "@/lib/hooks/useLevel";
+import { LevelCard } from "@/components/LevelCard";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 
 export default function MePage() {
   const { t, lang, setLang } = useT();
   const { profile, loading } = useProfile();
+  const level = useLevel();
   const router = useRouter();
 
   const handleSignOut = async () => {
@@ -80,6 +83,8 @@ export default function MePage() {
           })}
         </div>
       </div>
+
+      <LevelCard level={level} />
 
       {/* Referral */}
       {profile?.referral_code && (
