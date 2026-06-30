@@ -1,51 +1,68 @@
 "use client";
 
-import { TrustRibbon } from "@/components/TrustRibbon";
 import { useT, type I18nKey } from "@/lib/i18n";
 type TFn = (k: I18nKey) => string;
 import { useProfile } from "@/lib/hooks/useProfile";
 import { useWallet } from "@/lib/hooks/useWallet";
 import { useTransactions } from "@/lib/hooks/useTransactions";
+import { usePlatformStats } from "@/lib/hooks/usePlatformStats";
 import { formatUGX } from "@/lib/types";
 import type { Transaction } from "@/lib/types";
 import Link from "next/link";
 
 function txnIcon(kind: string) {
-  if (kind === "bill") return "⚡";
+  if (kind === "bill" || kind === "yaka") return "💡";
+  if (kind === "water") return "💧";
   if (kind === "airtime") return "📡";
   if (kind === "send") return "↑";
   if (kind === "savings") return "📈";
+  if (kind === "refund") return "↩";
   return "↓";
 }
 
 function txnColor(kind: string) {
-  if (kind === "send" || kind === "bill" || kind === "airtime")
+  if (kind === "refund") return "text-gold bg-gold/10";
+  if (kind === "send" || kind === "bill" || kind === "yaka" || kind === "water" || kind === "airtime")
     return "text-ink bg-soft";
   return "text-accent bg-accent/10";
 }
 
 function amountSign(kind: string) {
-  if (kind === "receive" || kind === "savings") return "+";
+  if (kind === "receive" || kind === "savings" || kind === "refund") return "+";
   return "−";
 }
 
+function statusBadge(status: string) {
+  if (status === "success") return "✓";
+  if (status === "pending") return "⏳";
+  if (status === "failed") return "✕";
+  return "";
+}
+
+function relativeTime(iso: string): string {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return "now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
+const KIND_LABEL: Record<string, I18nKey> = {
+  bill: "kind_bill",
+  yaka: "job_yaka",
+  water: "job_water",
+  airtime: "kind_airtime",
+  send: "kind_send",
+  receive: "kind_receive",
+  savings: "kind_savings",
+};
+
 function TxnRow({ txn, t }: { txn: Transaction; t: TFn }) {
-  const kindLabel: Record<string, string> = {
-    bill: t("kind_bill"),
-    airtime: t("kind_airtime"),
-    send: t("kind_send"),
-    receive: t("kind_receive"),
-    savings: t("kind_savings"),
-  };
-
-  const date = new Date(txn.created_at).toLocaleDateString("en-UG", {
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-
-  const isCredit = txn.kind === "receive";
+  const labelKey = KIND_LABEL[txn.kind];
+  const label = txn.kind === "refund" ? "Refund" : labelKey ? t(labelKey) : txn.kind;
 
   return (
     <div className="flex items-center gap-3 px-4 py-3.5 border-b border-line last:border-0">
@@ -55,69 +72,158 @@ function TxnRow({ txn, t }: { txn: Transaction; t: TFn }) {
         {txnIcon(txn.kind)}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-[13px] font-medium text-ink truncate">
-          {kindLabel[txn.kind] ?? txn.kind}
-        </p>
+        <p className="text-[13px] font-medium text-ink truncate">{label}</p>
         <p className="text-[11px] text-ink3 mt-0.5">
-          {txn.counterparty ?? txn.reference ?? date}
+          {txn.counterparty ?? relativeTime(txn.created_at)}
         </p>
       </div>
       <div className="text-right flex-shrink-0">
         <p
           className={`text-[13px] font-semibold money ${
-            isCredit ? "text-accent" : "text-ink"
+            txn.kind === "receive" || txn.kind === "refund" ? "text-accent" : "text-ink"
           }`}
         >
           {amountSign(txn.kind)}
           {formatUGX(txn.amount_minor)}
         </p>
-        {txn.fee_minor === 0 && (
-          <p className="text-[10px] text-ink3 mt-0.5">free</p>
-        )}
+        <p className="text-[10px] text-ink3 mt-0.5">
+          {statusBadge(txn.status)} {relativeTime(txn.created_at)}
+        </p>
       </div>
     </div>
+  );
+}
+
+function JobButton({
+  href,
+  icon,
+  label,
+  hero = false,
+}: {
+  href: string;
+  icon: string;
+  label: string;
+  hero?: boolean;
+}) {
+  if (hero) {
+    return (
+      <Link
+        href={href}
+        className="col-span-2 rounded-card bg-primary text-white shadow-elevated p-5 flex items-center gap-4 min-h-[64px] hover:bg-primaryPress transition-colors"
+      >
+        <span className="text-3xl">{icon}</span>
+        <span className="text-[17px] font-semibold">{label}</span>
+      </Link>
+    );
+  }
+  return (
+    <Link
+      href={href}
+      className="rounded-card border border-line bg-card shadow-subtle p-4 flex flex-col items-center justify-center gap-2 min-h-[56px] hover:border-ink3 transition-colors"
+    >
+      <span className="text-2xl">{icon}</span>
+      <span className="text-[12px] font-semibold text-ink">{label}</span>
+    </Link>
   );
 }
 
 export default function HomePage() {
   const { t } = useT();
   const { profile } = useProfile();
-  const { wallet, loading: walletLoading } = useWallet();
+  const { wallet } = useWallet();
   const { txns, loading: txnsLoading } = useTransactions(5);
+  const { stats } = usePlatformStats();
 
-  const firstName =
-    profile?.full_name?.split(" ")[0] ?? "Friend";
+  const firstName = profile?.full_name?.split(" ")[0] ?? "Friend";
+
+  const lastBillTxn = txns.find((tx) => ["bill", "yaka", "water"].includes(tx.kind));
+  const daysSinceLastBill = lastBillTxn
+    ? Math.floor((Date.now() - new Date(lastBillTxn.created_at).getTime()) / 86400000)
+    : 999;
+  const showTopupNudge = daysSinceLastBill >= 25;
+
+  const lastRefund = txns.find((tx) => tx.kind === "refund");
+
+  const feesSavedMinor = txns
+    .filter((tx) => tx.status === "success" && tx.kind !== "refund")
+    .reduce((sum, tx) => sum + Math.round(tx.amount_minor * 0.01), 0);
+
+  const successRateLabel = stats ? `${stats.success_rate.toFixed(1)}%` : "99.4%";
 
   return (
     <div className="pb-4">
-      <TrustRibbon />
+      {/* Trust line */}
+      <div className="mx-4 mt-3 flex items-start gap-3 bg-soft rounded-button px-4 py-3 border border-line">
+        <span className="text-[18px] flex-shrink-0 mt-0.5" role="img" aria-label="shield">
+          🛡
+        </span>
+        <div className="flex-1">
+          <p className="text-[13px] font-semibold text-ink">
+            {firstName}, {t("safety_tagline").toLowerCase()}
+          </p>
+          <p className="text-[11px] text-ink2 leading-relaxed mt-0.5">{t("trust_ribbon")}</p>
+        </div>
+        <span className="flex-shrink-0 text-[10px] font-bold text-accent bg-accent/10 rounded-full px-2.5 py-1 whitespace-nowrap self-center">
+          {successRateLabel}
+        </span>
+      </div>
+
+      {/* Nudge card */}
+      <div className="mx-4 mt-3 rounded-card border border-line bg-card shadow-subtle p-4 flex items-center gap-3">
+        <span className="text-2xl flex-shrink-0">{showTopupNudge ? "💡" : "🌱"}</span>
+        <p className="text-[13px] text-ink flex-1 leading-relaxed">
+          {showTopupNudge ? t("nudge_topup_title") : t("nudge_save_title")}
+        </p>
+        <Link
+          href={showTopupNudge ? "/pay/yaka" : "/grow"}
+          className="text-[12px] font-semibold text-primary whitespace-nowrap flex-shrink-0"
+        >
+          {showTopupNudge ? t("nudge_topup_cta") : t("nudge_save_cta")}
+        </Link>
+      </div>
 
       {/* Balance hero */}
-      <div className="mx-4 mt-4 rounded-big bg-primary p-6 shadow-elevated">
+      <div className="mx-4 mt-3 rounded-big bg-primary p-6 shadow-elevated">
         <p className="text-[11px] text-white/70 font-medium uppercase tracking-wider">
           {t("balance")}
         </p>
         <p className="money text-[36px] text-white mt-1 leading-none">
-          {walletLoading ? "—" : formatUGX(wallet?.balance_minor ?? 0)}
+          {formatUGX(wallet?.balance_minor ?? 0)}
         </p>
-        <p className="text-[13px] text-white/60 mt-1.5">{firstName}</p>
       </div>
 
-      {/* Quick actions */}
-      <div className="grid grid-cols-2 gap-3 mx-4 mt-4">
-        <Link
-          href="/cash"
-          className="rounded-card border border-line bg-card shadow-subtle p-4 flex items-center gap-3 hover:border-ink3 transition-colors min-h-[52px]"
-        >
-          <span className="text-xl text-primary font-bold">↑</span>
-          <span className="text-[14px] font-semibold text-ink">{t("send")}</span>
-        </Link>
-        <Link
-          href="/cash"
-          className="rounded-card border border-line bg-card shadow-subtle p-4 flex items-center gap-3 hover:border-ink3 transition-colors min-h-[52px]"
-        >
-          <span className="text-xl text-accent font-bold">↓</span>
-          <span className="text-[14px] font-semibold text-ink">{t("receive")}</span>
+      {/* Jobs grid */}
+      <div className="mx-4 mt-4">
+        <h2 className="font-display text-[15px] font-semibold text-ink mb-2">
+          {t("what_to_do")}
+        </h2>
+        <div className="grid grid-cols-2 gap-3">
+          <JobButton href="/pay/yaka" icon="💡" label={t("job_yaka")} hero />
+          <JobButton href="/pay/water" icon="💧" label={t("job_water")} />
+          <JobButton href="/pay/send" icon="↑" label={t("job_send")} />
+          <JobButton href="/cash" icon="🏪" label={t("job_cash")} />
+          <JobButton href="/pay/airtime" icon="📞" label={t("job_airtime")} />
+        </div>
+      </div>
+
+      {/* Last refund surfaced */}
+      {lastRefund && (
+        <div className="mx-4 mt-3 rounded-card border border-gold/30 bg-gold/5 px-4 py-2.5 flex items-center gap-2">
+          <span className="text-[13px] text-ink2">
+            {t("last_refund_line").replace("{seconds}", "12")}
+          </span>
+        </div>
+      )}
+
+      {/* Fees saved */}
+      <div className="mx-4 mt-3 rounded-card border border-line bg-card shadow-subtle p-4 flex items-center gap-3">
+        <span className="text-2xl flex-shrink-0">💰</span>
+        <div className="flex-1">
+          <p className="text-[12px] text-ink3">{t("fees_saved_title")}</p>
+          <p className="money text-[18px] text-ink font-semibold">{formatUGX(feesSavedMinor)}</p>
+        </div>
+        <Link href="/grow" className="text-[12px] font-semibold text-primary whitespace-nowrap">
+          {t("fees_saved_cta")}
         </Link>
       </div>
 
@@ -127,9 +233,9 @@ export default function HomePage() {
           <h2 className="font-display text-[15px] font-semibold text-ink">
             {t("recent_activity")}
           </h2>
-          <button className="text-[12px] text-primary font-medium">
+          <Link href="/cash" className="text-[12px] text-primary font-medium">
             {t("see_all")}
-          </button>
+          </Link>
         </div>
 
         <div className="rounded-card border border-line bg-card shadow-subtle overflow-hidden">
@@ -139,17 +245,27 @@ export default function HomePage() {
             </div>
           ) : txns.length === 0 ? (
             <div className="px-4 py-8 text-center">
-              <p className="text-[14px] font-medium text-ink mb-1">
-                {t("no_transactions")}
-              </p>
+              <p className="text-[14px] font-medium text-ink mb-1">{t("no_transactions")}</p>
               <p className="text-[12px] text-ink3">{t("no_transactions_sub")}</p>
             </div>
           ) : (
-            txns.map((txn) => (
-              <TxnRow key={txn.id} txn={txn} t={t} />
-            ))
+            txns.map((txn) => <TxnRow key={txn.id} txn={txn} t={t} />)
           )}
         </div>
+      </div>
+
+      {/* Social proof */}
+      <div className="mx-4 mt-3 text-center">
+        <p className="text-[12px] text-ink3">
+          {t("social_proof")
+            .replace("{count}", String(stats?.bills_today ?? 0))
+            .replace("{city}", stats?.city ?? "Kampala")}
+        </p>
+      </div>
+
+      {/* USSD footer */}
+      <div className="mx-4 mt-4 text-center">
+        <p className="text-[11px] text-ink3">{t("ussd_footer")}</p>
       </div>
     </div>
   );

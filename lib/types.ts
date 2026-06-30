@@ -36,6 +36,26 @@ export interface Transaction {
   created_at: string;
 }
 
+export interface PlatformStats {
+  id: string;
+  success_rate: number;
+  bills_today: number;
+  city: string;
+}
+
+export type AgentCashStatus = "ready" | "low" | "out";
+
+export interface Agent {
+  id: string;
+  shop_name: string;
+  area: string;
+  phone: string | null;
+  cash_status: AgentCashStatus;
+  verified: boolean;
+  lat: number | null;
+  lng: number | null;
+}
+
 // ─── Formatters ────────────────────────────────────────────────────────────────
 
 /** Renders "UGX 1,000" with thousands separators and tabular figures. */
