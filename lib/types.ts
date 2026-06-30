@@ -36,6 +36,38 @@ export interface Transaction {
   created_at: string;
 }
 
+export type AutoCadence = "none" | "weekly" | "monthly";
+
+export interface SavingsPot {
+  id: string;
+  user_id: string;
+  name: string;
+  saved_minor: number;
+  target_minor: number;
+  apy: number;
+  auto_amount_minor: number;
+  auto_cadence: AutoCadence;
+  created_at: string;
+}
+
+export interface Chama {
+  id: string;
+  name: string;
+  contribution_minor: number;
+  cadence: "weekly" | "monthly";
+  member_count: number;
+  created_by: string;
+  created_at: string;
+}
+
+export interface ChamaMember {
+  id: string;
+  chama_id: string;
+  user_id: string;
+  position: number;
+  created_at: string;
+}
+
 export interface PlatformStats {
   id: string;
   success_rate: number;

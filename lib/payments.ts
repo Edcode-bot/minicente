@@ -3,7 +3,7 @@
 import { useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 
-export type PaymentKind = "yaka" | "water" | "airtime" | "send";
+export type PaymentKind = "yaka" | "water" | "airtime" | "send" | "savings";
 
 export interface ProcessPaymentInput {
   kind: PaymentKind;

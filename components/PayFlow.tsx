@@ -24,6 +24,7 @@ const JOB_CONFIG: Record<
     quickPicks: [1000, 2000, 5000, 10000],
   },
   send: { labelKey: "pay_label_send", fieldKey: "pay_field_recipient", placeholder: "+256" },
+  savings: { labelKey: "pot_section", fieldKey: "new_pot_name", placeholder: "Goal name" },
 };
 
 export function PayFlow({ job }: { job: PaymentKind }) {
