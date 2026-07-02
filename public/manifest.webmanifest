@@ -1,13 +1,15 @@
 {
-  "name": "Minicente — Money that always works",
+  "name": "Minicente",
   "short_name": "Minicente",
-  "description": "Simple, safe mobile money for Uganda",
+  "description": "Simple, safe mobile money for Uganda. Pay bills, save, send — in seconds.",
   "start_url": "/",
+  "id": "/",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#ffffff",
+  "theme_color": "#0f7a43",
   "orientation": "portrait-primary",
   "categories": ["finance"],
+  "lang": "en-UG",
   "icons": [
     {
       "src": "/icon.svg",
@@ -16,10 +18,23 @@
       "purpose": "any"
     },
     {
-      "src": "/icon.svg",
+      "src": "/icon-maskable.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "maskable"
+    }
+  ],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Pay YAKA",
+      "url": "/pay/yaka",
+      "description": "Pay your electricity bill"
+    },
+    {
+      "name": "Send money",
+      "url": "/pay/send",
+      "description": "Send money to a friend"
     }
   ]
 }
