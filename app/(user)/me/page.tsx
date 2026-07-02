@@ -1,11 +1,13 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useT } from "@/lib/i18n";
 import { useProfile } from "@/lib/hooks/useProfile";
 import { useLevel } from "@/lib/hooks/useLevel";
 import { LevelCard } from "@/components/LevelCard";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
+import type { AgentAccount } from "@/lib/types";
 
 export default function MePage() {
   const { t, lang, setLang } = useT();
@@ -30,6 +32,21 @@ export default function MePage() {
       void navigator.clipboard.writeText(profile.referral_code);
     }
   };
+
+  const [agentAccount, setAgentAccount] = useState<AgentAccount | null>(null);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => {
+      if (!data.user) return;
+      void supabase
+        .from("agent_accounts")
+        .select("*")
+        .eq("user_id", data.user.id)
+        .maybeSingle()
+        .then(({ data: acc }) => setAgentAccount(acc));
+    });
+  }, []);
 
   const KYC_TIERS = [1, 2, 3] as const;
 
@@ -115,6 +132,25 @@ export default function MePage() {
         >
           {t("switch_lang")}
         </button>
+      </div>
+
+      {/* Agent row */}
+      <div className="rounded-card border border-line bg-card shadow-subtle divide-y divide-line mb-4">
+        <a
+          href={agentAccount ? "/agent" : "/agent/join"}
+          className="flex items-center justify-between px-4 py-3.5 hover:bg-soft transition-colors min-h-[52px]"
+        >
+          <div className="flex items-center gap-3">
+            <span className="text-lg">🏪</span>
+            <div>
+              <p className="text-[14px] font-medium text-ink">{t("agent_row")}</p>
+              {agentAccount && (
+                <p className="text-[11px] text-ink3 font-mono">{agentAccount.agent_code}</p>
+              )}
+            </div>
+          </div>
+          <span className="text-ink3">›</span>
+        </a>
       </div>
 
       {/* Safety link */}
