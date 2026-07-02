@@ -389,7 +389,7 @@ function OnboardingInner() {
     if (stage === "phone") {
       setIsSubmitting(true);
       setAuthError(null);
-      const email = `mc-${phoneRaw}@minicente.local`;
+      const email = `mc-${phoneRaw}@example.com`;
       const password = `MC-${phoneRaw}-dev`;
       setPhoneEmail(email);
       void (async () => {

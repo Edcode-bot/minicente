@@ -8,6 +8,7 @@ import { LevelCard } from "@/components/LevelCard";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import type { AgentAccount } from "@/lib/types";
+import { Skeleton, SkeletonCard } from "@/components/Skeleton";
 
 export default function MePage() {
   const { t, lang, setLang } = useT();
@@ -49,6 +50,16 @@ export default function MePage() {
   }, []);
 
   const KYC_TIERS = [1, 2, 3] as const;
+
+  if (loading) {
+    return (
+      <div className="px-4 pt-5 pb-4 space-y-3">
+        <SkeletonCard rows={3} />
+        <SkeletonCard rows={2} />
+        <SkeletonCard rows={1} />
+      </div>
+    );
+  }
 
   return (
     <div className="px-4 pt-5 pb-4">

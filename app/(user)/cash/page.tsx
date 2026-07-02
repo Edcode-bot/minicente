@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useT } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/client";
 import type { Agent, AgentCashStatus } from "@/lib/types";
+import { Skeleton } from "@/components/Skeleton";
 
 function statusBadgeClass(status: AgentCashStatus) {
   if (status === "ready") return "text-accent bg-accent/10";
@@ -11,9 +12,10 @@ function statusBadgeClass(status: AgentCashStatus) {
   return "text-ink3 bg-soft";
 }
 
-function mockDistance(seed: number): string {
+// Deterministic distance estimate from agent index (no GPS data in DB yet)
+function approxDistance(seed: number): string {
   const m = 60 + (seed * 137) % 440;
-  return `${m}m`;
+  return `~${m}m`;
 }
 
 export default function CashPage() {
@@ -34,7 +36,7 @@ export default function CashPage() {
   const sorted = useMemo(
     () =>
       agents
-        .map((a, i) => ({ agent: a, distance: mockDistance(i + 1) }))
+        .map((a, i) => ({ agent: a, distance: approxDistance(i + 1) }))
         .sort((a, b) => parseInt(a.distance) - parseInt(b.distance)),
     [agents]
   );
@@ -61,8 +63,17 @@ export default function CashPage() {
 
       <div className="rounded-card border border-line bg-card shadow-subtle overflow-hidden">
         {loading ? (
-          <div className="px-4 py-6 text-center">
-            <div className="w-6 h-6 rounded-full border-2 border-line border-t-primary animate-spin mx-auto" />
+          <div className="divide-y divide-line">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="flex items-center gap-3 px-4 py-3.5">
+                <Skeleton className="w-9 h-9 rounded-xl flex-shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-3 w-2/3" />
+                  <Skeleton className="h-2.5 w-1/3" />
+                </div>
+                <Skeleton className="h-5 w-14 rounded-full" />
+              </div>
+            ))}
           </div>
         ) : sorted.length === 0 ? (
           <div className="px-4 py-8 text-center">

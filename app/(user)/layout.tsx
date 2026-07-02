@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { TopBar } from "@/components/TopBar";
 import { UserBottomNav } from "@/components/UserBottomNav";
 import { LanguageProvider } from "@/lib/i18n";
+import { OfflineToast } from "@/components/OfflineToast";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 export default async function UserLayout({
   children,
@@ -26,11 +28,14 @@ export default async function UserLayout({
 
   return (
     <LanguageProvider>
-      <div className="mx-auto max-w-[460px] min-h-screen bg-bg border-x border-line relative">
-        <TopBar />
-        <main className="pb-[88px]">{children}</main>
-        <UserBottomNav />
-      </div>
+      <ErrorBoundary>
+        <OfflineToast />
+        <div className="mx-auto max-w-[460px] min-h-screen bg-bg border-x border-line relative">
+          <TopBar />
+          <main className="pb-[88px]">{children}</main>
+          <UserBottomNav />
+        </div>
+      </ErrorBoundary>
     </LanguageProvider>
   );
 }

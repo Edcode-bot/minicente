@@ -88,6 +88,33 @@ export interface Agent {
   lng: number | null;
 }
 
+export type AgentTier = "bronze" | "silver" | "gold";
+
+export interface AgentAccount {
+  id: string;
+  user_id: string;
+  agent_code: string;
+  tier: AgentTier;
+  float_minor: number;
+  float_limit_minor: number;
+  earnings_minor: number;
+  created_at: string;
+}
+
+export type AgentTxnKind = "cashin" | "cashout" | "float_topup" | "float_repay";
+
+export interface AgentTransaction {
+  id: string;
+  agent_id: string;
+  user_id: string;
+  kind: AgentTxnKind;
+  amount_minor: number;
+  commission_minor: number;
+  customer_phone: string | null;
+  reference: string | null;
+  created_at: string;
+}
+
 // ─── Formatters ────────────────────────────────────────────────────────────────
 
 /** Renders "UGX 1,000" with thousands separators and tabular figures. */

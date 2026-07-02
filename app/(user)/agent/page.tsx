@@ -6,6 +6,7 @@ import { useT } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/client";
 import { formatUGX } from "@/lib/types";
 import type { AgentAccount, AgentTransaction } from "@/lib/types";
+import { safeWrite } from "@/lib/offline";
 
 // ─── Commission rates by tier ────────────────────────────────────────────────
 
@@ -87,19 +88,17 @@ function CicoSheet({
   const amountNum = parseInt(amount.replace(/\D/g, ""), 10) || 0;
   const commissionNum = Math.round(amountNum * commissionRate);
 
+  const [offlineErr, setOfflineErr] = useState(false);
+
   const handleSubmit = async () => {
     if (!phone || amountNum < 1000) return;
     setLoading(true);
+    setOfflineErr(false);
     const supabase = createClient();
     const ref = "MC-AG-" + Math.random().toString(16).slice(2, 10).toUpperCase();
-    await supabase.from("agent_transactions").insert({
-      agent_id: agentId,
-      kind,
-      amount_minor: amountNum,
-      commission_minor: commissionNum,
-      customer_phone: phone,
-      reference: ref,
-    });
+    const row = { agent_id: agentId, kind, amount_minor: amountNum, commission_minor: commissionNum, customer_phone: phone, reference: ref };
+    const res = await safeWrite(async () => { await supabase.from("agent_transactions").insert(row); });
+    if (!res.ok && res.offline) { setOfflineErr(true); setLoading(false); return; }
     setCommission(commissionNum);
     setDone(true);
     setLoading(false);
@@ -160,6 +159,11 @@ function CicoSheet({
                 <span className="text-[12px] text-ink3">{t("agent_commission_label")}</span>
                 <span className="font-bold text-accent">{formatUGX(commissionNum)}</span>
               </div>
+            )}
+            {offlineErr && (
+              <p className="text-[12px] text-amber-700 bg-amber-50 border border-amber-200 rounded-button px-3 py-2">
+                📶 You&apos;re offline — we&apos;ll retry when you&apos;re back.
+              </p>
             )}
             <button
               onClick={() => void handleSubmit()}

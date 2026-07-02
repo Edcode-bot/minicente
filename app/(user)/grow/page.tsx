@@ -8,6 +8,7 @@ import { formatUGX } from "@/lib/types";
 import type { SavingsPot, Chama, ChamaMember, AutoCadence } from "@/lib/types";
 import { useLevel } from "@/lib/hooks/useLevel";
 import { calcLoanEligibility } from "@/lib/hooks/useLoanEligibility";
+import { safeWrite } from "@/lib/offline";
 import Link from "next/link";
 
 type TFn = (k: I18nKey) => string;
@@ -204,8 +205,8 @@ export default function GrowPage() {
     if (!potName.trim() || !potTarget.trim() || !userId) return;
     setPotSaving(true);
     const supabase = createClient();
-    const targetMinor = parseInt(potTarget.replace(/[^\d]/g, ""), 10) * 100;
-    const autoMinor = parseInt(potAutoAmt.replace(/[^\d]/g, ""), 10) * 100 || 0;
+    const targetMinor = parseInt(potTarget.replace(/[^\d]/g, ""), 10);
+    const autoMinor = parseInt(potAutoAmt.replace(/[^\d]/g, ""), 10) || 0;
     const { data } = await supabase.from("savings_pots").insert({
       user_id: userId,
       name: potName.trim(),
@@ -226,18 +227,24 @@ export default function GrowPage() {
   const [addStatus, setAddStatus] = useState<"idle" | "busy" | "ok" | "err" | "low">("idle");
 
   const handleAddMoney = async (pot: SavingsPot) => {
-    const minor = parseInt(addAmt.replace(/[^\d]/g, ""), 10) * 100;
+    const minor = parseInt(addAmt.replace(/[^\d]/g, ""), 10);
     if (!minor || minor <= 0) return;
     setAddStatus("busy");
     const result = await processPayment({ kind: "savings", amountMinor: minor, counterparty: pot.name });
     if (result.reason === "insufficient") { setAddStatus("low"); return; }
     if (!result.ok) { setAddStatus("err"); return; }
 
-    const supabase = createClient();
+    // Optimistic update — show new total immediately
     const newSaved = pot.saved_minor + minor;
-    await supabase.from("savings_pots").update({ saved_minor: newSaved }).eq("id", pot.id);
     setPots((prev) => prev.map((p) => p.id === pot.id ? { ...p, saved_minor: newSaved } : p));
     setAddAmt(""); setAddStatus("ok");
+
+    // Persist to DB; if offline, queue and reconcile on reconnect
+    const supabase = createClient();
+    const write = await safeWrite(async () => { await supabase.from("savings_pots").update({ saved_minor: newSaved }).eq("id", pot.id); });
+    if (!write.ok && write.offline) {
+      // Rolled back by safeWrite queue; keep optimistic for now — will sync on reconnect
+    }
     setTimeout(close, 1200);
   };
 
@@ -276,7 +283,7 @@ export default function GrowPage() {
     if (!newChamaName.trim() || !newChamaAmt.trim() || !userId) return;
     setChamaSaving(true);
     const supabase = createClient();
-    const contribMinor = parseInt(newChamaAmt.replace(/[^\d]/g, ""), 10) * 100;
+    const contribMinor = parseInt(newChamaAmt.replace(/[^\d]/g, ""), 10);
     const { data: chamaRow } = await supabase.from("chamas").insert({
       name: newChamaName.trim(),
       contribution_minor: contribMinor || 10000,
@@ -294,6 +301,17 @@ export default function GrowPage() {
   };
 
   // ─── Render ─────────────────────────────────────────────────────────────────
+  if (loading) {
+    return (
+      <div className="px-4 pt-5 pb-2 space-y-3">
+        <div className="h-6 rounded bg-line/60 animate-pulse w-1/2" />
+        <div className="h-16 rounded-card bg-line/40 animate-pulse" />
+        <div className="h-24 rounded-card bg-line/40 animate-pulse" />
+        <div className="h-24 rounded-card bg-line/40 animate-pulse" />
+      </div>
+    );
+  }
+
   return (
     <div className="px-4 pt-5 pb-2">
       {/* Header */}

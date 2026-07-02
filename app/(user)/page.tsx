@@ -14,6 +14,7 @@ import { computeNudge } from "@/lib/hooks/useNudge";
 import { createClient } from "@/lib/supabase/client";
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { BalanceSkeleton, TxnRowSkeleton, Skeleton } from "@/components/Skeleton";
 
 function txnIcon(kind: string) {
   if (kind === "bill" || kind === "yaka") return "💡";
@@ -135,7 +136,7 @@ function JobButton({
 export default function HomePage() {
   const { t } = useT();
   const { profile } = useProfile();
-  const { wallet } = useWallet();
+  const { wallet, loading: walletLoading } = useWallet();
   const { txns, loading: txnsLoading } = useTransactions(20);
   const { stats } = usePlatformStats();
   const level = useLevel();
@@ -159,8 +160,7 @@ export default function HomePage() {
       setLoanApplied(Array.isArray(loanData) && loanData.length > 0);
     })();
   }, []);
-
-  const firstName = profile?.full_name?.split(" ")[0] ?? "Friend";
+  const firstName = profile?.full_name?.split(" ")[0] ?? "";
   const lastRefund = txns.find((tx) => tx.kind === "refund");
   const successRateLabel = stats ? `${stats.success_rate.toFixed(1)}%` : "99.4%";
 
@@ -199,14 +199,18 @@ export default function HomePage() {
       </div>
 
       {/* Balance hero */}
-      <div className="mx-4 mt-3 rounded-big bg-primary p-6 shadow-elevated">
-        <p className="text-[11px] text-white/70 font-medium uppercase tracking-wider">
-          {t("balance")}
-        </p>
-        <p className="money text-[36px] text-white mt-1 leading-none">
-          {formatUGX(wallet?.balance_minor ?? 0)}
-        </p>
-      </div>
+      {walletLoading ? (
+        <BalanceSkeleton />
+      ) : (
+        <div className="mx-4 mt-3 rounded-big bg-primary p-6 shadow-elevated">
+          <p className="text-[11px] text-white/70 font-medium uppercase tracking-wider">
+            {t("balance")}
+          </p>
+          <p className="money text-[36px] text-white mt-1 leading-none">
+            {formatUGX(wallet?.balance_minor ?? 0)}
+          </p>
+        </div>
+      )}
 
       {/* Jobs grid */}
       <div className="mx-4 mt-4">
@@ -258,9 +262,11 @@ export default function HomePage() {
 
         <div className="rounded-card border border-line bg-card shadow-subtle overflow-hidden">
           {txnsLoading ? (
-            <div className="px-4 py-6 text-center">
-              <div className="w-6 h-6 rounded-full border-2 border-line border-t-primary animate-spin mx-auto" />
-            </div>
+            <>
+              <TxnRowSkeleton />
+              <TxnRowSkeleton />
+              <TxnRowSkeleton />
+            </>
           ) : txns.length === 0 ? (
             <div className="px-4 py-8 text-center">
               <p className="text-[14px] font-medium text-ink mb-1">{t("no_transactions")}</p>
