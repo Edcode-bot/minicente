@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { recordSettlement } from "@/lib/settlement/record";
 
 // POST /api/rails/webhook
 // Called by the payment provider (MTN MoMo callback, biller callback, etc.)
@@ -68,6 +69,8 @@ export async function POST(req: NextRequest) {
         .update({ balance_minor: wallet.balance_minor - (txn.amount_minor + txn.fee_minor) })
         .eq("id", wallet.id);
     }
+    // Record settlement (best-effort)
+    void recordSettlement({ txnId: txn.reference, amountMinor: txn.amount_minor });
   } else {
     // Mark failed + auto-insert refund (no wallet deduction)
     await supabase

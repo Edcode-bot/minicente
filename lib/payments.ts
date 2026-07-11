@@ -173,6 +173,13 @@ export async function processPayment(
     .update({ balance_minor: wallet.balance_minor - (input.amountMinor + feeMinor) })
     .eq("id", wallet.id);
 
+  // Fire-and-forget settlement record (best-effort internal bookkeeping)
+  void fetch("/api/settlement/record", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ txnId: reference, amountMinor: input.amountMinor }),
+  }).catch(() => {});
+
   return {
     ok: true,
     status: "success",

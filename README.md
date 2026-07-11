@@ -73,6 +73,8 @@ Create the following in your Supabase project:
 | `platform_stats` | `success_rate`, `bills_today`, `city` |
 | `levels` | `name`, `min_txns`, `perks` |
 | `kyc_submissions` | `user_id`, `tier`, `id_number`, `file_path`, `status` |
+| `otp_codes` | `phone`, `code` (sha256 hash), `expires_at`, `consumed` |
+| `settlements` | `txn_id`, `asset`, `amount_minor`, `chain`, `provider_ref`, `status` |
 
 ### Storage
 
@@ -95,19 +97,74 @@ Set the same env vars in Vercel project settings → Environment Variables.
 
 ---
 
-## What's mocked vs real (P13–P15 roadmap)
+## Sim → Live: every layer is built and live-ready
 
-| Feature | Current state | P13–P15 plan |
-|---------|--------------|-------------|
-| KYC review | Auto-approved after 2s delay | Real human review queue + webhook |
-| YAKA/water payment | ~10% random fail, real DB write | Live UMEME / NWSC API |
-| Airtime | Simulated | Africa's Talking or Yo! Uganda |
-| Agent distance | Seed-estimated (`~Xm`) | Real GPS from `agents.lat/lng` |
-| Platform stats | Manual row in `platform_stats` | Computed view / realtime |
-| Loan disbursement | DB record only | Mobile Money disbursal API |
-| PIN storage | `pin_set` flag only | Hashed PIN in secure column |
-| Push notifications | Toggle UI only | FCM / Expo push |
-| USSD | Footer copy only | Africa's Talking USSD gateway |
+All backend layers are fully implemented in simulation mode. Flip each layer to live with a single env-var change.
+
+| Layer | Env var | Default | To go live |
+|-------|---------|---------|-----------|
+| **Payment rails** (MoMo collect/disburse) | `NEXT_PUBLIC_RAILS_MODE` | `sim` | Set to `live` + add MTN or Airtel credentials |
+| **MoMo provider** | `NEXT_PUBLIC_RAILS_PROVIDER` | `mtn` | `mtn` or `airtel` |
+| **OTP / SMS** | `OTP_MODE` | `sim` | Set to `live` + add Africa's Talking credentials |
+| **Settlement** (multichain reconciliation) | `SETTLEMENT_MODE` | `sim` | Set to `live` + add `TREASURY_ADDRESS` + RPC endpoints |
+
+### Full live-launch env-var list
+
+```env
+# Supabase (required always)
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=      # USSD, ops dashboard, settlement recording
+
+# Flip to live (all default to 'sim')
+NEXT_PUBLIC_RAILS_MODE=live
+NEXT_PUBLIC_RAILS_PROVIDER=mtn   # or airtel
+OTP_MODE=live
+SETTLEMENT_MODE=live
+
+# Security
+RAILS_WEBHOOK_SECRET=            # shared secret on provider → /api/rails/webhook
+
+# MTN MoMo (when RAILS_PROVIDER=mtn)
+MTN_SUBSCRIPTION_KEY=
+MTN_API_USER=
+MTN_API_KEY=
+MTN_TARGET_ENV=mtnuganda          # or sandbox
+
+# Airtel Money (when RAILS_PROVIDER=airtel)
+AIRTEL_CLIENT_ID=
+AIRTEL_CLIENT_SECRET=
+
+# Africa's Talking (OTP + USSD)
+AT_API_KEY=
+AT_USERNAME=
+AT_SENDER_ID=
+
+# EVM settlement treasury
+TREASURY_ADDRESS=0x...
+RPC_URL_BASE=
+RPC_URL_ARBITRUM=
+RPC_URL_OPTIMISM=
+RPC_URL_POLYGON=
+
+# Investor face (optional)
+NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID=
+```
+
+### Readiness check
+
+`GET /api/health` — returns a JSON report of which layers are sim vs live, which env vars are missing, and Supabase connectivity. HTTP 200 = ready, 503 = degraded.
+
+### What still needs human work before launch
+
+| Item | Notes |
+|------|-------|
+| KYC review queue | Auto-approved now; add human review + webhook to update `kyc_submissions.status` |
+| Agent GPS | `agents.lat/lng` columns + device GPS → real distance |
+| PIN hashing | `pin_set` flag → hashed PIN in a secure Supabase column |
+| Push notifications | FCM / Expo — toggle UI is wired, backend not connected |
+| Loan disbursement | DB record created; needs MoMo disburse call on approval |
+| Platform stats | Manual `platform_stats` row → computed Supabase view |
 
 ---
 
