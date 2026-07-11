@@ -6,10 +6,12 @@ import Link from "next/link";
 import { useT, type I18nKey } from "@/lib/i18n";
 import { useWallet } from "@/lib/hooks/useWallet";
 import { useProfile } from "@/lib/hooks/useProfile";
-import { usePayment, type PaymentKind } from "@/lib/payments";
+import { usePayment, validateBillerAccount, type PaymentKind } from "@/lib/payments";
 import { formatUGX } from "@/lib/types";
 
-type Stage = "enter" | "confirm" | "processing" | "result";
+type Stage = "enter" | "validating" | "confirm" | "processing" | "result";
+
+const BILLER_KINDS: PaymentKind[] = ["yaka", "water"];
 
 const JOB_CONFIG: Record<
   PaymentKind,
@@ -39,6 +41,8 @@ export function PayFlow({ job }: { job: PaymentKind }) {
   const [amount, setAmount] = useState("");
   const [field, setField] = useState(job === "airtime" ? (profile?.phone ?? "") : "");
   const [note, setNote] = useState("");
+  const [validateError, setValidateError] = useState("");
+  const [customerName, setCustomerName] = useState("");
 
   const amountMinor = useMemo(() => {
     const n = parseInt(amount.replace(/[^\d]/g, ""), 10);
@@ -47,10 +51,25 @@ export function PayFlow({ job }: { job: PaymentKind }) {
 
   const balanceMinor = wallet?.balance_minor ?? 0;
   const insufficientLocal = amountMinor > 0 && amountMinor > balanceMinor;
+  const isBiller = BILLER_KINDS.includes(job);
 
-  const handleStartConfirm = () => {
+  const handleStartConfirm = async () => {
     if (amountMinor <= 0 || insufficientLocal || !field.trim()) return;
-    setStage("confirm");
+
+    if (isBiller) {
+      setValidateError("");
+      setStage("validating");
+      const res = await validateBillerAccount(job, field.trim());
+      if (!res.ok) {
+        setValidateError(t("validate_fail"));
+        setStage("enter");
+        return;
+      }
+      setCustomerName(res.customerName ?? "");
+      setStage("confirm");
+    } else {
+      setStage("confirm");
+    }
   };
 
   const handlePay = async () => {
@@ -64,7 +83,7 @@ export function PayFlow({ job }: { job: PaymentKind }) {
     setStage("result");
   };
 
-  if (stage === "enter") {
+  if (stage === "enter" || stage === "validating") {
     return (
       <div className="px-4 pt-5 pb-2">
         <h1 className="font-display text-[20px] font-bold text-ink mb-4">{t(config.labelKey)}</h1>
@@ -105,10 +124,14 @@ export function PayFlow({ job }: { job: PaymentKind }) {
           <input
             type="text"
             value={field}
-            onChange={(e) => setField(e.target.value)}
+            onChange={(e) => { setField(e.target.value); setValidateError(""); }}
             placeholder={config.placeholder}
             className="text-[16px] text-ink bg-transparent outline-none mt-1 w-full border-b border-line pb-2"
           />
+
+          {validateError && (
+            <p className="text-[12px] text-danger mt-2">{validateError}</p>
+          )}
 
           {job === "send" && (
             <>
@@ -138,10 +161,10 @@ export function PayFlow({ job }: { job: PaymentKind }) {
 
         <button
           onClick={handleStartConfirm}
-          disabled={amountMinor <= 0 || insufficientLocal || !field.trim()}
+          disabled={stage === "validating" || amountMinor <= 0 || insufficientLocal || !field.trim()}
           className="w-full rounded-button bg-primary text-white font-semibold text-[15px] py-4 disabled:opacity-40 transition-opacity"
         >
-          {t("pay_continue")}
+          {stage === "validating" ? t("validate_checking") : t("pay_continue")}
         </button>
       </div>
     );
@@ -157,6 +180,9 @@ export function PayFlow({ job }: { job: PaymentKind }) {
         <div className="rounded-card border border-line bg-card shadow-subtle p-5 mb-6">
           <Row label={t("pay_confirm_paying_for")} value={t(config.labelKey)} />
           <Row label={t("pay_confirm_to")} value={field} />
+          {customerName && (
+            <Row label={t("validate_customer")} value={customerName} />
+          )}
           <Row label={t("pay_confirm_amount")} value={formatUGX(amountMinor)} />
           <Row label={t("pay_confirm_fee")} value="UGX 0" />
           <div className="border-t border-line mt-3 pt-3">
@@ -190,10 +216,12 @@ export function PayFlow({ job }: { job: PaymentKind }) {
       <SuccessResult
         amountMinor={amountMinor}
         reference={result.reference}
+        providerRef={result.providerRef}
         onDone={() => router.push("/")}
         onAnother={() => {
           setStage("enter");
           setAmount("");
+          setCustomerName("");
         }}
       />
     );
@@ -233,11 +261,13 @@ function Row({ label, value, bold = false }: { label: string; value: string; bol
 function SuccessResult({
   amountMinor,
   reference,
+  providerRef,
   onDone,
   onAnother,
 }: {
   amountMinor: number;
   reference: string;
+  providerRef?: string;
   onDone: () => void;
   onAnother: () => void;
 }) {
@@ -256,6 +286,9 @@ function SuccessResult({
         <Row label={t("result_fee")} value="UGX 0" />
         <Row label={t("result_time")} value="4s" />
         <Row label={t("result_reference")} value={reference} />
+        {providerRef && (
+          <Row label={t("validate_provider_ref")} value={providerRef} />
+        )}
       </div>
 
       <div className="w-full mt-6 flex flex-col gap-3">

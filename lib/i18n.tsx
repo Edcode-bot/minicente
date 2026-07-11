@@ -404,6 +404,14 @@ const en = {
   settings_support_sub: "0800-XXX-XXX · Luganda or English · 7 days",
   settings_version: "App version",
   settings_safety_link: "Why Minicente is safe",
+
+  // Biller validate step (yaka / water)
+  validate_checking: "Checking account…",
+  validate_ok: "Account confirmed ✓",
+  validate_fail: "Account not found — check the number",
+  validate_customer: "Customer",
+  validate_meter_label: "Meter / Account",
+  validate_provider_ref: "Provider ref",
 } as const;
 
 export type I18nKey = keyof typeof en;
@@ -780,6 +788,14 @@ const lug: Record<I18nKey, string> = {
   settings_support_sub: "0800-XXX-XXX · Luganda oba Olungereza · Ennaku 7",
   settings_version: "Ekiteeso kya app",
   settings_safety_link: "Lwaki Minicente esirinzika",
+
+  // Biller validate step (yaka / water)
+  validate_checking: "Tulinnoonya akawunti…",
+  validate_ok: "Akawunti yagundibwa ✓",
+  validate_fail: "Akawunti etayitibwa — kakasa ennamba",
+  validate_customer: "Omulimu",
+  validate_meter_label: "Meter / Akawunti",
+  validate_provider_ref: "Olukalala lwa omuwereza",
 };
 
 // ─── Context & provider ───────────────────────────────────────────────────────
