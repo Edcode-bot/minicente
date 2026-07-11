@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { createHash } from "crypto";
 import { createClient } from "@supabase/supabase-js";
 
-// P18: full debug mode — every step logged + real error returned in JSON.
-// Remove this file's debug wrappers once the flow is confirmed working.
+// POST /api/otp/verify
+// Auth bridge: anon signUp/signIn with mc-<digits>@minicente.dev (no service role needed).
+// Falls back to admin generateLink if SUPABASE_SERVICE_ROLE_KEY is present.
+// Code is marked consumed only after successful auth.
 
 function hashCode(code: string, phone: string): string {
   return createHash("sha256").update(`${code}:${phone}`).digest("hex");
@@ -24,38 +26,37 @@ function adminClient() {
   });
 }
 
-function fail(step: string, error: string, extra?: Record<string, unknown>) {
-  console.error(`[OTP verify] FAIL step=${step} error=${error}`, extra ?? "");
-  return NextResponse.json({ ok: false, step, error, ...extra }, { status: 500 });
+function clientError(status: number, error: string) {
+  return NextResponse.json({ ok: false, error }, { status });
 }
 
 export async function POST(req: NextRequest) {
   console.log("[OTP verify] --- request received ---");
 
-  // ── Parse body ──────────────────────────────────────────────────────────
   let body: { phone?: string; code?: string };
   try {
     body = await req.json();
   } catch (e) {
-    return fail("parse", String(e));
+    console.error("[OTP verify] parse error:", String(e));
+    return clientError(400, "Invalid JSON");
   }
 
   const digits = String(body.phone ?? "").replace(/\D/g, "");
   const codeInput = String(body.code ?? "").trim();
-  console.log(`[OTP verify] phone=${digits} codeInput=${codeInput} codeLen=${codeInput.length}`);
+  console.log(`[OTP verify] phone=${digits} codeLen=${codeInput.length}`);
 
   if (!digits || !codeInput || codeInput.length !== 5) {
-    return NextResponse.json({ ok: false, step: "validate", error: "phone and 5-digit code required" }, { status: 400 });
+    return clientError(400, "phone and 5-digit code required");
   }
 
   const submittedHash = hashCode(codeInput, digits);
   const now = new Date().toISOString();
-  console.log(`[OTP verify] submittedHash=${submittedHash} now=${now}`);
 
   // ── DB lookup ────────────────────────────────────────────────────────────
   console.log("[OTP verify] step=db-lookup");
   const anon = anonClient();
   let record: { id: string; code: string } | null = null;
+
   try {
     const { data, error: lookupError } = await anon
       .from("otp_codes")
@@ -68,42 +69,33 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
 
     if (lookupError) {
-      return fail("db-lookup", lookupError.message, { code: lookupError.code, details: lookupError.details });
+      console.error("[OTP verify] db-lookup error:", lookupError.message, lookupError.code);
+      return clientError(500, "Verification failed");
     }
     record = data as { id: string; code: string } | null;
-    console.log(`[OTP verify] db-lookup result: ${record ? "found id=" + record.id : "NOT FOUND"}`);
+    console.log(`[OTP verify] db-lookup: ${record ? "found id=" + record.id : "NOT FOUND"}`);
   } catch (e) {
-    return fail("db-lookup-throw", String(e));
+    console.error("[OTP verify] db-lookup threw:", String(e));
+    return clientError(500, "Verification failed");
   }
 
   if (!record) {
-    // Extra diagnostic: fetch without expiry/consumed filters to see what's actually there
+    // Diagnostic only — never reaches client
     const { data: rawRows } = await anon
       .from("otp_codes")
       .select("id, phone, consumed, expires_at, created_at")
       .eq("phone", digits)
       .order("created_at", { ascending: false })
       .limit(5);
-    console.log("[OTP verify] raw rows for phone (ignoring filters):", JSON.stringify(rawRows));
-    return NextResponse.json(
-      { ok: false, step: "db-lookup", error: "Invalid or expired code", rawRows },
-      { status: 401 }
-    );
+    console.warn("[OTP verify] no valid record; recent rows:", JSON.stringify(rawRows));
+    return clientError(401, "Invalid or expired code");
   }
 
-  // ── Hash comparison ─────────────────────────────────────────────────────
-  console.log(`[OTP verify] step=hash-compare storedHash=${record.code}`);
+  // ── Hash comparison ──────────────────────────────────────────────────────
+  console.log(`[OTP verify] step=hash-compare storedHash=${record.code} submittedHash=${submittedHash}`);
   if (record.code !== submittedHash) {
-    return NextResponse.json(
-      {
-        ok: false,
-        step: "hash-compare",
-        error: "Hash mismatch",
-        storedHash: record.code,
-        submittedHash,
-      },
-      { status: 401 }
-    );
+    console.warn("[OTP verify] hash mismatch");
+    return clientError(401, "Invalid or expired code");
   }
   console.log("[OTP verify] hash-compare: MATCH");
 
@@ -145,7 +137,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Path B: anon signUp → signIn
+  // Path B: anon signUp
   if (!accessToken) {
     console.log("[OTP verify] trying path=anon-signUp");
     try {
@@ -157,7 +149,8 @@ export async function POST(req: NextRequest) {
       console.log(`[OTP verify] signUp: error=${signUpError?.message ?? "none"} hasSession=${!!signUpData?.session}`);
 
       if (signUpError && !signUpError.message.toLowerCase().includes("already registered")) {
-        return fail("signUp", signUpError.message);
+        console.error("[OTP verify] signUp hard error:", signUpError.message);
+        return clientError(500, "Verification failed");
       }
       if (signUpData?.session) {
         accessToken = signUpData.session.access_token;
@@ -165,11 +158,12 @@ export async function POST(req: NextRequest) {
         identityMethod = "anon-signUp";
       }
     } catch (e) {
-      return fail("signUp-throw", String(e));
+      console.error("[OTP verify] signUp threw:", String(e));
+      return clientError(500, "Verification failed");
     }
   }
 
-  // Path C: anon signIn (returning user)
+  // Path C: anon signIn (returning user / signUp returned no session)
   if (!accessToken) {
     console.log("[OTP verify] trying path=anon-signIn");
     try {
@@ -177,13 +171,13 @@ export async function POST(req: NextRequest) {
       console.log(`[OTP verify] signIn: error=${siError?.message ?? "none"} hasSession=${!!siData?.session}`);
 
       if (siError || !siData?.session) {
-        // Password mismatch (user exists but was created with old password/domain) — reset via admin
+        // Stale password — reset via admin if available
         if (admin) {
           console.log("[OTP verify] trying path=admin-pw-reset");
           try {
             const { data: list } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
             const existing = list?.users?.find((u) => u.email === email);
-            console.log(`[OTP verify] admin-listUsers found=${!!existing}`);
+            console.log(`[OTP verify] listUsers found=${!!existing}`);
             if (existing) {
               await admin.auth.admin.updateUserById(existing.id, { password, email_confirm: true });
               const { data: si2, error: si2Error } = await anon.auth.signInWithPassword({ email, password });
@@ -200,7 +194,8 @@ export async function POST(req: NextRequest) {
         }
 
         if (!accessToken) {
-          return fail("signIn", siError?.message ?? "No session after signIn");
+          console.error("[OTP verify] all auth paths exhausted");
+          return clientError(500, "Verification failed");
         }
       } else {
         accessToken = siData.session.access_token;
@@ -208,7 +203,8 @@ export async function POST(req: NextRequest) {
         identityMethod = "anon-signIn";
       }
     } catch (e) {
-      return fail("signIn-throw", String(e));
+      console.error("[OTP verify] signIn threw:", String(e));
+      return clientError(500, "Verification failed");
     }
   }
 
