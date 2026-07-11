@@ -7,6 +7,7 @@ import { useT, type I18nKey } from "@/lib/i18n";
 import { useWallet } from "@/lib/hooks/useWallet";
 import { useProfile } from "@/lib/hooks/useProfile";
 import { usePayment, validateBillerAccount, type PaymentKind } from "@/lib/payments";
+import { PilotBadge } from "@/components/PilotBadge";
 import { formatUGX } from "@/lib/types";
 
 type Stage = "enter" | "validating" | "confirm" | "processing" | "result";
@@ -190,6 +191,8 @@ export function PayFlow({ job }: { job: PaymentKind }) {
           </div>
         </div>
 
+        <PilotBadge className="mb-4" />
+
         <button
           onClick={handlePay}
           className="w-full rounded-button bg-primary text-white font-semibold text-[15px] py-4"
@@ -289,6 +292,9 @@ function SuccessResult({
         {providerRef && (
           <Row label={t("validate_provider_ref")} value={providerRef} />
         )}
+        <p className="text-[11px] text-ink3 text-center mt-3 pt-3 border-t border-line leading-relaxed">
+          {t("pilot_receipt")}
+        </p>
       </div>
 
       <div className="w-full mt-6 flex flex-col gap-3">

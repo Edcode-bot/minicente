@@ -419,6 +419,11 @@ const en = {
   validate_customer: "Customer",
   validate_meter_label: "Meter / Account",
   validate_provider_ref: "Provider ref",
+
+  // Pilot mode — honest test-money labelling
+  pilot_badge: "Pilot — test funds, not real money yet",
+  pilot_confirm: "Pilot payment — no real money will move",
+  pilot_receipt: "This is a pilot payment — no real money moved.",
 } as const;
 
 export type I18nKey = keyof typeof en;
@@ -810,6 +815,11 @@ const lug: Record<I18nKey, string> = {
   validate_customer: "Omulimu",
   validate_meter_label: "Meter / Akawunti",
   validate_provider_ref: "Olukalala lwa omuwereza",
+
+  // Pilot mode
+  pilot_badge: "Pilot — sente ez'okugerezaganya, si sente nzimbu",
+  pilot_confirm: "Okusaasaanya kwa pilot — sente nzimbu tezizze",
+  pilot_receipt: "Kino kye kusaasaanya kwa pilot — sente nzimbu tezaava.",
 };
 
 // ─── Context & provider ───────────────────────────────────────────────────────

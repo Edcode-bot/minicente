@@ -15,6 +15,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { BalanceSkeleton, TxnRowSkeleton, Skeleton } from "@/components/Skeleton";
+import { PilotBadge } from "@/components/PilotBadge";
 
 function txnIcon(kind: string) {
   if (kind === "bill" || kind === "yaka") return "💡";
@@ -291,6 +292,9 @@ export default function HomePage() {
       <div className="mx-4 mt-4 text-center">
         <p className="text-[11px] text-ink3">{t("ussd_footer")}</p>
       </div>
+
+      {/* Pilot disclosure */}
+      <PilotBadge className="mx-4 mt-3 mb-1" />
     </div>
   );
 }
