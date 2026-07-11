@@ -405,6 +405,13 @@ const en = {
   settings_version: "App version",
   settings_safety_link: "Why Minicente is safe",
 
+  // OTP real flow
+  otp_dev_hint: "Dev code:",
+  otp_sending: "Sending code…",
+  otp_verifying: "Verifying…",
+  otp_code_error: "That code isn't right — try again",
+  otp_send_error: "Couldn't send code — try again",
+
   // Biller validate step (yaka / water)
   validate_checking: "Checking account…",
   validate_ok: "Account confirmed ✓",
@@ -788,6 +795,13 @@ const lug: Record<I18nKey, string> = {
   settings_support_sub: "0800-XXX-XXX · Luganda oba Olungereza · Ennaku 7",
   settings_version: "Ekiteeso kya app",
   settings_safety_link: "Lwaki Minicente esirinzika",
+
+  // OTP real flow
+  otp_dev_hint: "Koodi ya dev:",
+  otp_sending: "Tuweereza koodi…",
+  otp_verifying: "Tukakasa…",
+  otp_code_error: "Koodi etoonye — gezaako nate",
+  otp_send_error: "Tetwayinza kujjira koodi — gezaako nate",
 
   // Biller validate step (yaka / water)
   validate_checking: "Tulinnoonya akawunti…",

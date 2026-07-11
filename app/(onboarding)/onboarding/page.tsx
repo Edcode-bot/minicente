@@ -246,7 +246,7 @@ function OnboardingInner() {
   const [biometric, setBiometric] = useState(false);
   const [winChoice, setWinChoice] = useState<WinChoice | null>(null);
   const [countdown, setCountdown] = useState(24);
-  const [phoneEmail, setPhoneEmail] = useState("");
+  const [devCode, setDevCode] = useState<string | null>(null);
   const [firstWinRef, setFirstWinRef] = useState("");
   const [authError, setAuthError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -283,18 +283,6 @@ function OnboardingInner() {
     })();
   }, [router]);
 
-  // Listen for magic-link sign-in while on OTP screen
-  useEffect(() => {
-    if (stage !== "otp") return;
-    const supabase = createClient();
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event) => {
-        if (event === "SIGNED_IN") setStage("pin");
-      }
-    );
-    return () => subscription.unsubscribe();
-  }, [stage]);
-
   // OTP countdown
   useEffect(() => {
     if (stage !== "otp") return;
@@ -306,15 +294,12 @@ function OnboardingInner() {
     return () => clearInterval(id);
   }, [stage]);
 
-  // OTP auto-advance: when all 5 boxes filled, verify session and proceed
+  // OTP auto-advance: when all 5 boxes filled, submit automatically
   useEffect(() => {
     if (stage !== "otp") return;
     if (otp.join("").length !== 5) return;
-    const supabase = createClient();
-    void (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) setStage("pin");
-    })();
+    void handleVerifyOtp(otp.join(""));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [otp, stage]);
 
   // PIN auto-advance
@@ -383,63 +368,70 @@ function OnboardingInner() {
     })();
   }, [router]);
 
+  // ── OTP verify (shared between auto-advance and Continue button) ──────────
+  const handleVerifyOtp = useCallback(async (codeStr: string) => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    setAuthError(null);
+    try {
+      const res = await fetch("/api/otp/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: phoneRaw, code: codeStr }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.ok) {
+        setAuthError(json.error ?? t("otp_code_error"));
+        setIsSubmitting(false);
+        return;
+      }
+      // Establish the browser session using the returned tokens
+      const supabase = createClient();
+      await supabase.auth.setSession({
+        access_token: json.accessToken,
+        refresh_token: json.refreshToken,
+      });
+      setIsSubmitting(false);
+      setStage("pin");
+    } catch {
+      setAuthError(t("otp_code_error"));
+      setIsSubmitting(false);
+    }
+  }, [isSubmitting, phoneRaw, t]);
+
   const handleContinue = useCallback(() => {
     if (stage === "language") { setStage("phone"); return; }
 
     if (stage === "phone") {
       setIsSubmitting(true);
       setAuthError(null);
-      const email = `mc-${phoneRaw}@example.com`;
-      const password = `MC-${phoneRaw}-dev`;
-      setPhoneEmail(email);
+      setDevCode(null);
       void (async () => {
-        const supabase = createClient();
-
-        // Try creating the account first (new user)
-        const { error: signUpError } = await supabase.auth.signUp({
-          email,
-          password,
-          options: { data: { phone: `+256${phoneRaw}`, full_name: "Friend" } },
-        });
-
-        if (signUpError) {
-          const isExisting =
-            signUpError.message.toLowerCase().includes("already registered") ||
-            signUpError.message.toLowerCase().includes("already been registered") ||
-            signUpError.message.toLowerCase().includes("user already");
-          if (isExisting) {
-            // Returning user — sign straight in with the same derived credentials
-            const { error: signInError } = await supabase.auth.signInWithPassword({
-              email,
-              password,
-            });
-            if (signInError) {
-              setIsSubmitting(false);
-              setAuthError(signInError.message);
-              return;
-            }
-          } else {
+        try {
+          const res = await fetch("/api/otp/request", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ phone: phoneRaw }),
+          });
+          const json = await res.json();
+          if (!res.ok || !json.ok) {
+            setAuthError(json.error ?? t("otp_send_error"));
             setIsSubmitting(false);
-            setAuthError(signUpError.message);
             return;
           }
+          if (json.devCode) setDevCode(json.devCode);
+          setIsSubmitting(false);
+          setStage("otp");
+        } catch {
+          setAuthError(t("otp_send_error"));
+          setIsSubmitting(false);
         }
-
-        setIsSubmitting(false);
-        setStage("otp");
       })();
       return;
     }
 
     if (stage === "otp") {
-      // Session is already established by signUp/signInWithPassword above.
-      // Verify and advance — any 5 digits accepted.
-      void (async () => {
-        const supabase = createClient();
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) { setStage("pin"); }
-        else { setAuthError("Session not found — please go back and try again."); }
-      })();
+      void handleVerifyOtp(otp.join(""));
       return;
     }
     if (stage === "gift") { setStage("firstwin"); return; }
@@ -497,7 +489,7 @@ function OnboardingInner() {
 
   const canContinue: boolean = (() => {
     if (stage === "phone") return phoneRaw.length === 9 && !isSubmitting;
-    if (stage === "otp") return otp.join("").length === 5 || otp.join("") === ""; // any 5 digits, or allow skip
+    if (stage === "otp") return otp.join("").length === 5 && !isSubmitting;
     if (stage === "firstwin") return winChoice !== null;
     return true;
   })();
@@ -548,7 +540,24 @@ function OnboardingInner() {
             onChange={setOtp}
             displayPhone={displayPhone}
             countdown={countdown}
-            onResend={() => setCountdown(24)}
+            onResend={() => {
+              setCountdown(24);
+              setOtp(Array(5).fill(""));
+              setDevCode(null);
+              setAuthError(null);
+              void (async () => {
+                const res = await fetch("/api/otp/request", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ phone: phoneRaw }),
+                });
+                const json = await res.json();
+                if (json.devCode) setDevCode(json.devCode);
+              })();
+            }}
+            devCode={devCode}
+            codeError={authError}
+            isVerifying={isSubmitting}
             t={t}
           />
         )}
@@ -749,7 +758,7 @@ function StagePhone({
       {isSubmitting && (
         <div className="flex items-center gap-2 mt-3">
           <div className="w-4 h-4 rounded-full border-2 border-line border-t-primary animate-spin" />
-          <p className="text-[12px] text-ink3">Securing your account…</p>
+          <p className="text-[12px] text-ink3">{t("otp_sending")}</p>
         </div>
       )}
       {error && (
@@ -767,6 +776,9 @@ function StageOtp({
   displayPhone,
   countdown,
   onResend,
+  devCode,
+  codeError,
+  isVerifying,
   t,
 }: {
   otp: string[];
@@ -774,6 +786,9 @@ function StageOtp({
   displayPhone: string;
   countdown: number;
   onResend: () => void;
+  devCode: string | null;
+  codeError: string | null;
+  isVerifying: boolean;
   t: TFn;
 }) {
   return (
@@ -781,19 +796,35 @@ function StageOtp({
       <h1 className="font-display text-[24px] font-bold text-ink leading-tight mb-2">
         {t("otp_title")}
       </h1>
-      <p className="text-[14px] text-ink2 leading-relaxed mb-1">
+      <p className="text-[14px] text-ink2 leading-relaxed mb-5">
         {t("otp_sent")}{" "}
         <span className="font-semibold text-ink">{displayPhone}</span>
       </p>
 
-      <div className="bg-soft border border-line rounded-button px-3 py-2.5 mb-6">
-        <p className="text-[12px] text-ink3 leading-relaxed">
-          Enter any 5-digit code to confirm — your account is already secured.
-          ({t("otp_demo")})
-        </p>
-      </div>
-
       <OtpBoxes value={otp} onChange={onChange} />
+
+      {/* Sim-mode dev hint */}
+      {devCode && (
+        <div className="flex items-center justify-center gap-2 mt-4">
+          <span className="text-[12px] text-ink3">{t("otp_dev_hint")}</span>
+          <span className="font-mono text-[14px] font-bold text-primary tracking-widest">
+            {devCode}
+          </span>
+        </div>
+      )}
+
+      {/* Error */}
+      {codeError && (
+        <p className="text-[12px] text-danger text-center mt-3">{codeError}</p>
+      )}
+
+      {/* Verifying spinner */}
+      {isVerifying && (
+        <div className="flex items-center justify-center gap-2 mt-3">
+          <div className="w-4 h-4 rounded-full border-2 border-line border-t-primary animate-spin" />
+          <p className="text-[12px] text-ink3">{t("otp_verifying")}</p>
+        </div>
+      )}
 
       {/* Resend */}
       <div className="flex items-center justify-center mt-6 gap-1">
