@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHash } from "crypto";
 import { createClient } from "@supabase/supabase-js";
+import { createAdminClient } from "@/lib/supabase/admin";
 
-// TODO (P15): switch to Supabase native phone auth (supabase.auth.signInWithOtp)
-// when the Africa's Talking SMS integration goes live. For now we keep the
-// deterministic email bridge (mc-<digits>@example.com / MC-<digits>-dev) as the
-// actual Supabase identity — the user-facing flow is purely phone + code.
+// POST /api/otp/verify
+// Checks the submitted 5-digit code against the otp_codes table, then establishes
+// a Supabase session via admin generateLink → verifyOtp exchange (no email sent).
+// The email bridge uses mc-<digits>@minicente.dev; admin API bypasses domain validation.
 
 function hashCode(code: string, phone: string): string {
   return createHash("sha256").update(`${code}:${phone}`).digest("hex");
@@ -35,10 +36,10 @@ export async function POST(req: NextRequest) {
 
   const codeHash = hashCode(code, digits);
   const now = new Date().toISOString();
-  const supabase = anonClient();
+  const anon = anonClient();
 
-  // Look up a valid, unconsumed, unexpired record
-  const { data: record, error: lookupError } = await supabase
+  // Look up a valid, unconsumed, unexpired OTP record
+  const { data: record, error: lookupError } = await anon
     .from("otp_codes")
     .select("id")
     .eq("phone", digits)
@@ -56,58 +57,90 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid or expired code" }, { status: 401 });
   }
 
-  // Mark consumed (best-effort — already checked uniqueness above)
-  await supabase.from("otp_codes").update({ consumed: true }).eq("id", record.id);
+  // Mark consumed (best-effort)
+  await anon.from("otp_codes").update({ consumed: true }).eq("id", record.id);
 
-  // Establish Supabase identity via email bridge
-  const email = `mc-${digits}@example.com`;
-  const password = `MC-${digits}-dev`;
+  // ── Establish Supabase identity via admin magic-link exchange ─────────────
+  // admin.generateLink creates the user if new, or issues a fresh token if existing.
+  // hashed_token is exchanged immediately via verifyOtp — no email is ever sent.
+  // Identity: mc-<digits>@minicente.dev (admin API is permissive about email domains)
+  const email = `mc-${digits}@minicente.dev`;
+  const admin = createAdminClient();
 
-  // Try sign-in (returning user)
-  const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+  const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
+    type: "magiclink",
     email,
-    password,
+    options: { data: { phone: `+256${digits}` } },
   });
 
-  if (!signInError && signInData.session) {
+  if (linkError || !linkData?.properties?.hashed_token) {
+    console.error("[OTP verify] generateLink error:", linkError?.message);
+
+    // Fallback: email+password bridge if generateLink failed
+    const password = `MC-${digits}-auth`;
+    const { data: createData, error: createError } =
+      await admin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: { phone: `+256${digits}` },
+      });
+
+    let userId = createData?.user?.id;
+
+    if (createError && !createError.message.toLowerCase().includes("already")) {
+      console.error("[OTP verify] createUser fallback error:", createError.message);
+      return NextResponse.json({ error: createError.message }, { status: 500 });
+    }
+
+    if (!userId) {
+      // User already existed — find them and reset password
+      const { data: list } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+      const existing = list?.users?.find((u) => u.email === email);
+      if (!existing) {
+        return NextResponse.json({ error: "Auth failed" }, { status: 500 });
+      }
+      userId = existing.id;
+      await admin.auth.admin.updateUserById(userId, { password, email_confirm: true });
+    }
+
+    const { data: si, error: siError } = await anon.auth.signInWithPassword({ email, password });
+    if (siError || !si.session) {
+      console.error("[OTP verify] fallback signIn error:", siError?.message);
+      return NextResponse.json({ error: siError?.message ?? "Auth failed" }, { status: 500 });
+    }
+
+    console.log(`[OTP verify] identity=email-pw-fallback user=${si.session.user.id}`);
     return NextResponse.json({
       ok: true,
-      accessToken: signInData.session.access_token,
-      refreshToken: signInData.session.refresh_token,
+      accessToken: si.session.access_token,
+      refreshToken: si.session.refresh_token,
+      identity: "email-pw-fallback",
     });
   }
 
-  // New user — sign up
-  const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-    email,
-    password,
-    options: { data: { phone: `+256${digits}`, full_name: "Friend" } },
+  // Exchange hashed_token for a live session (no redirect, no email sent)
+  const { data: verifyData, error: verifyError } = await anon.auth.verifyOtp({
+    token_hash: linkData.properties.hashed_token,
+    type: "magiclink",
   });
 
-  if (signUpError && !signUpError.message.toLowerCase().includes("already")) {
-    console.error("[OTP verify] signUp error:", signUpError.message);
-    return NextResponse.json({ error: signUpError.message }, { status: 500 });
+  if (verifyError || !verifyData.session) {
+    console.error("[OTP verify] verifyOtp error:", verifyError?.message);
+    return NextResponse.json(
+      { error: verifyError?.message ?? "Session creation failed" },
+      { status: 500 }
+    );
   }
 
-  // If email confirmation is disabled, signUp returns a session directly
-  if (signUpData?.session) {
-    return NextResponse.json({
-      ok: true,
-      accessToken: signUpData.session.access_token,
-      refreshToken: signUpData.session.refresh_token,
-    });
-  }
-
-  // Otherwise sign in after signup
-  const { data: si2, error: si2Error } = await supabase.auth.signInWithPassword({ email, password });
-  if (si2Error || !si2.session) {
-    console.error("[OTP verify] final signIn error:", si2Error?.message);
-    return NextResponse.json({ error: si2Error?.message ?? "Auth failed" }, { status: 500 });
-  }
+  console.log(
+    `[OTP verify] identity=email-bridge-minicente.dev user=${verifyData.session.user.id}`
+  );
 
   return NextResponse.json({
     ok: true,
-    accessToken: si2.session.access_token,
-    refreshToken: si2.session.refresh_token,
+    accessToken: verifyData.session.access_token,
+    refreshToken: verifyData.session.refresh_token,
+    identity: "email-bridge-minicente.dev",
   });
 }
