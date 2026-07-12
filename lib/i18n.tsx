@@ -21,9 +21,9 @@ const en = {
   cash: "Cash",
   me: "Me",
   coming_soon: "Coming in the next step",
-  safety_tagline: "Your money is safe",
+  safety_tagline: "Pilot — your experience is safe",
   trust_ribbon:
-    "Your money is safe — held at a licensed bank, refunded if a payment fails",
+    "Pilot — payments are simulated. At launch, money will be held at a licensed bank and refunded automatically if anything fails.",
   success_rate: "99.4% success",
   notifications: "Notifications",
   safety: "Safety",
@@ -35,7 +35,7 @@ const en = {
   switch_lang: "Luganda",
 
   // Common onboarding
-  trust_line: "🛡 Licensed by Bank of Uganda · money held at a licensed bank",
+  trust_line: "🛡 Pilot — not yet licensed · testing the experience with real users",
   continue: "Continue",
   back: "Back",
 
@@ -208,15 +208,15 @@ const en = {
 
   // Safety page
   safety_title: "Why Minicente is safe",
-  safety_licensed_title: "Your money is held at a licensed bank",
+  safety_licensed_title: "Money will be held at a licensed bank",
   safety_licensed_body:
-    "Kept in a regulated trust account — never lent out without your say.",
+    "At launch, your money will be kept in a regulated trust account — never lent out without your say. This is a pilot; no real funds are held yet.",
   safety_refund_title: "Automatic refunds",
   safety_refund_body:
     "If a payment doesn't go through, it reverses to you in under 30 seconds — no calls needed.",
-  safety_bou_title: "Licensed by Bank of Uganda",
+  safety_bou_title: "Bank of Uganda licence — in progress",
   safety_bou_body:
-    "PSP Licence [000-000]. Verify us on the BoU public register at bou.or.ug.",
+    "We are applying for a Bank of Uganda PSP licence. Until it is granted, Minicente operates as a pilot — no real money is processed.",
   safety_support_title: "A person always answers",
   safety_support_body:
     "Call 0800-XXX-XXX free, in Luganda or English, 7 days a week. No bots for urgent issues.",
@@ -225,12 +225,12 @@ const en = {
   safety_step2: "If it fails, we detect it within seconds",
   safety_step3: "Your money is back in your balance automatically",
   safety_rate_label: "Payment success rate (last 30 days)",
-  safety_guarantee: "Every payment is guaranteed — or your money back.",
+  safety_guarantee: "At launch, every payment will be guaranteed — or your money back. Pilot payments are simulated.",
 
   // Grow — pots
   grow_headline: "Grow your money",
   grow_sub: "Small steps, on your terms. Withdraw anytime, no penalty.",
-  grow_trust: "Your savings earn 9% a year — held at a licensed bank.",
+  grow_trust: "At launch, your savings will earn interest held at a licensed bank. Pilot savings are simulated.",
   pot_section: "Savings goals",
   pot_add: "Add money",
   pot_new: "+ New goal",
@@ -420,6 +420,10 @@ const en = {
   validate_meter_label: "Meter / Account",
   validate_provider_ref: "Provider ref",
 
+  // Safety page pilot notice (top of /safety)
+  safety_pilot_notice:
+    "This is a pilot. Minicente is not yet licensed by the Bank of Uganda and does not hold real customer money. We are testing the experience with real users first.",
+
   // Pilot mode — honest test-money labelling
   pilot_badge: "Pilot — test funds, not real money yet",
   pilot_confirm: "Pilot payment — no real money will move",
@@ -446,9 +450,9 @@ const lug: Record<I18nKey, string> = {
   cash: "Sente",
   me: "Nze",
   coming_soon: "Ekijja mu nkola ennamba",
-  safety_tagline: "Ssente zo zirinzikira",
+  safety_tagline: "Pilot — okulaba kwo kusirinzikira",
   trust_ribbon:
-    "Ssente zo zirinzikira — zisinziirizibwa mu bank eyateekebwawo, osubulwa sente zo singa okusaasaana kufaayo",
+    "Pilot — okusasula kwakuzanyizibwa. Ng'oba tusubula, ssente zisinziirizibwa mu banki eyateekebwawo era zisubulibwa buli ssawa.",
   success_rate: "Njukizo 99.4%",
   notifications: "Obubaka",
   safety: "Obukuumi",
@@ -460,7 +464,7 @@ const lug: Record<I18nKey, string> = {
   switch_lang: "English",
 
   trust_line:
-    "🛡 Waakiririzibwa Banki ya Uganda · ssente zisinziirizibwa mu banki eyateekebwawo",
+    "🛡 Pilot — tetwaakiririzibwa · tukegereza obulamu bw'okukozesa n'abatumiwa",
   continue: "Endeera",
   back: "Zaamuuka",
 
@@ -620,15 +624,15 @@ const lug: Record<I18nKey, string> = {
   nudge_chama_cta: "Tera",
 
   safety_title: "Lwaki Minicente esirinzika",
-  safety_licensed_title: "Ssente zo zisinziirizibwa mu banki eyateekebwawo",
+  safety_licensed_title: "Ssente zisinziirizibwa mu banki eyateekebwawo ng'oba tusubula",
   safety_licensed_body:
-    "Zisinziirizibwa mu akawunti akeera — teziwereddwako wewutyo nga tokkiriza.",
+    "Ng'oba tusubula, ssente zisinziirizibwa mu akawunti akeera — teziwereddwako wewutyo nga tokkiriza. Kino kye pilot; ssente nzimbu tezisindibwa.",
   safety_refund_title: "Okusubula kwennyini",
   safety_refund_body:
     "Singa okusasula tekugenze bulungi, osubulibwa mu ssekunde 30 — tewali kukoona.",
-  safety_bou_title: "Waakiririzibwa Banki ya Uganda",
+  safety_bou_title: "Laisiisi ya Banki ya Uganda — eriindibwa",
   safety_bou_body:
-    "Laisiisi ya PSP [000-000]. Kakasa ku rejista ya BoU ku bou.or.ug.",
+    "Tutegeeza okutuunganira laisiisi ya PSP ya Banki ya Uganda. Okutuusa lwe tugiweebwa, Minicente ekola nga pilot — ssente nzimbu tezisaasulirizibwa.",
   safety_support_title: "Omu bulijjo addamu",
   safety_support_body:
     "Koona 0800-XXX-XXX bwerere, mu Luganda oba Olungereza, ennaku 7 mu wiiki.",
@@ -637,11 +641,11 @@ const lug: Record<I18nKey, string> = {
   safety_step2: "Singa kigaana, tukiraba mu ssekunde ntono",
   safety_step3: "Ssente zo zisubulibwa ku ssente zo wenyini",
   safety_rate_label: "Enteekateeka y'okusasula (ennaku 30 eziyise)",
-  safety_guarantee: "Buli okusasula kusirinzikizibwa — oba ssente zo zisubulibwa.",
+  safety_guarantee: "Ng'oba tusubula, buli okusasula kusirinzikizibwa — oba ssente zo zisubulibwa. Okusasula kwa pilot kukozesebwa.",
 
   grow_headline: "Kulungia ssente zo",
   grow_sub: "Amagezi manootono, ku ngeri yo. Ggya buli kiseera, tewali mulango.",
-  grow_trust: "Ssente zo ziziika ku 9% ku mwaka — zisinziirizibwa mu banki eyateekebwawo.",
+  grow_trust: "Ng'oba tusubula, ssente zo ziziika ne zisirinzikizibwa mu banki eyateekebwawo. Okutereka kwa pilot kukozesebwa.",
   pot_section: "Ebisuubirizo by'okutereka",
   pot_add: "Yongeza ssente",
   pot_new: "+ Esuubirizo eddya",
@@ -823,6 +827,10 @@ const lug: Record<I18nKey, string> = {
   validate_customer: "Omulimu",
   validate_meter_label: "Meter / Akawunti",
   validate_provider_ref: "Olukalala lwa omuwereza",
+
+  // Safety page pilot notice
+  safety_pilot_notice:
+    "Kino kye pilot. Minicente tetwaakiririzibwa Banki ya Uganda era tetujja ssente z'abaagattwa. Tutegeeza obulamu bw'okukozesa n'abatumiwa bokwongera.",
 
   // Pilot mode
   pilot_badge: "Pilot — sente ez'okugerezaganya, si sente nzimbu",

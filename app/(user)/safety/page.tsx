@@ -44,6 +44,12 @@ export default function SafetyPage() {
 
   return (
     <div className="px-4 pt-5 pb-6">
+      {/* Pilot disclaimer — required at top of safety page */}
+      <div className="rounded-card border border-gold/40 bg-gold/5 px-4 py-4 mb-5 flex items-start gap-3">
+        <span className="text-lg flex-shrink-0 mt-0.5">⚠️</span>
+        <p className="text-[13px] text-ink leading-relaxed">{t("safety_pilot_notice")}</p>
+      </div>
+
       {/* Header */}
       <div className="flex items-center gap-3 mb-5">
         <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
