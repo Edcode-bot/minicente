@@ -7,6 +7,7 @@
 //   user_id    uuid REFERENCES auth.users(id) ON DELETE SET NULL,
 //   message    text NOT NULL,
 //   screen     text NOT NULL DEFAULT 'unknown',
+//   mood       text,
 //   created_at timestamptz NOT NULL DEFAULT now()
 // );
 // CREATE INDEX ON feedback (created_at DESC);
@@ -18,10 +19,13 @@ import { useState, useEffect, useCallback } from "react";
 import { useT } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/client";
 
+type Mood = "bad" | "ok" | "good" | null;
+
 export function FeedbackSheet({ screen }: { screen: string }) {
   const { t } = useT();
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState("");
+  const [mood, setMood] = useState<Mood>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
@@ -38,6 +42,7 @@ export function FeedbackSheet({ screen }: { screen: string }) {
     setOpen(true);
     setSubmitted(false);
     setMessage("");
+    setMood(null);
   }, []);
 
   const handleClose = useCallback(() => {
@@ -54,6 +59,7 @@ export function FeedbackSheet({ screen }: { screen: string }) {
         user_id: userId,
         message: trimmed.slice(0, 1000),
         screen,
+        mood,
       });
       setSubmitted(true);
       setTimeout(() => setOpen(false), 2000);
@@ -63,7 +69,13 @@ export function FeedbackSheet({ screen }: { screen: string }) {
     } finally {
       setSubmitting(false);
     }
-  }, [message, submitting, userId, screen]);
+  }, [message, submitting, userId, screen, mood]);
+
+  const moods: { key: Mood & string; emoji: string }[] = [
+    { key: "bad", emoji: t("feedback_mood_bad") },
+    { key: "ok",  emoji: t("feedback_mood_ok") },
+    { key: "good", emoji: t("feedback_mood_good") },
+  ];
 
   return (
     <>
@@ -108,6 +120,28 @@ export function FeedbackSheet({ screen }: { screen: string }) {
                   className="w-full rounded-card border border-line bg-soft px-4 py-3 text-[14px] text-ink placeholder:text-ink3 outline-none focus:border-ink3 resize-none leading-relaxed"
                   autoFocus
                 />
+
+                {/* Mood picker */}
+                <div className="mt-4">
+                  <p className="text-[11px] text-ink3 mb-2">{t("feedback_mood_label")}</p>
+                  <div className="flex gap-3">
+                    {moods.map(({ key, emoji }) => (
+                      <button
+                        key={key}
+                        onClick={() => setMood(mood === key ? null : key)}
+                        className={`flex-1 h-11 rounded-card border text-2xl transition-colors ${
+                          mood === key
+                            ? "border-primary bg-primary/10"
+                            : "border-line bg-soft"
+                        }`}
+                        aria-pressed={mood === key}
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <button
                   onClick={() => void handleSubmit()}
                   disabled={!message.trim() || submitting}

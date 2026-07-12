@@ -436,6 +436,10 @@ const en = {
   feedback_submit: "Send",
   feedback_sending: "Sending…",
   feedback_thanks: "Thank you — we read every message.",
+  feedback_mood_label: "How did it feel?",
+  feedback_mood_bad: "😟",
+  feedback_mood_ok: "😐",
+  feedback_mood_good: "🙂",
 } as const;
 
 export type I18nKey = keyof typeof en;
@@ -844,6 +848,10 @@ const lug: Record<I18nKey, string> = {
   feedback_submit: "Weereza",
   feedback_sending: "Ebirumba…",
   feedback_thanks: "Webale — tusome buli obubaka.",
+  feedback_mood_label: "Yatuuka otya?",
+  feedback_mood_bad: "😟",
+  feedback_mood_ok: "😐",
+  feedback_mood_good: "🙂",
 };
 
 // ─── Context & provider ───────────────────────────────────────────────────────

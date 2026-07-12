@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { formatUGX } from "@/lib/types";
 import type { AgentAccount, AgentTransaction } from "@/lib/types";
 import { safeWrite } from "@/lib/offline";
+import { FeedbackSheet } from "@/components/FeedbackSheet";
 
 // ─── Commission rates by tier ────────────────────────────────────────────────
 
@@ -544,6 +545,7 @@ export default function AgentPage() {
           onClose={() => setSheet(null)}
         />
       )}
+      <FeedbackSheet screen="agent" />
     </>
   );
 }

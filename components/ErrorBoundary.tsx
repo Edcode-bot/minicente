@@ -1,6 +1,7 @@
 "use client";
 
-import { Component, type ReactNode } from "react";
+import { Component, type ReactNode, type ErrorInfo } from "react";
+import { logError } from "@/lib/logError";
 
 interface Props { children: ReactNode }
 interface State { hasError: boolean }
@@ -13,6 +14,13 @@ export class ErrorBoundary extends Component<Props, State> {
 
   static getDerivedStateFromError(): State {
     return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    logError(error.message, {
+      context: "ErrorBoundary",
+      componentStack: info.componentStack ?? "",
+    });
   }
 
   render() {
