@@ -424,6 +424,14 @@ const en = {
   pilot_badge: "Pilot — test funds, not real money yet",
   pilot_confirm: "Pilot payment — no real money will move",
   pilot_receipt: "This is a pilot payment — no real money moved.",
+
+  // Pilot feedback sheet
+  feedback_btn: "Feedback",
+  feedback_title: "Tell us what happened",
+  feedback_placeholder: "What worked well — or what didn't?",
+  feedback_submit: "Send",
+  feedback_sending: "Sending…",
+  feedback_thanks: "Thank you — we read every message.",
 } as const;
 
 export type I18nKey = keyof typeof en;
@@ -820,6 +828,14 @@ const lug: Record<I18nKey, string> = {
   pilot_badge: "Pilot — sente ez'okugerezaganya, si sente nzimbu",
   pilot_confirm: "Okusaasaanya kwa pilot — sente nzimbu tezizze",
   pilot_receipt: "Kino kye kusaasaanya kwa pilot — sente nzimbu tezaava.",
+
+  // Pilot feedback sheet
+  feedback_btn: "Ebiteeko",
+  feedback_title: "Tubuulire ekibaddewo",
+  feedback_placeholder: "Ekikoze bulungi — oba ekitakoze?",
+  feedback_submit: "Weereza",
+  feedback_sending: "Ebirumba…",
+  feedback_thanks: "Webale — tusome buli obubaka.",
 };
 
 // ─── Context & provider ───────────────────────────────────────────────────────

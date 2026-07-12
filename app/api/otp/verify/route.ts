@@ -30,6 +30,19 @@ function clientError(status: number, error: string) {
   return NextResponse.json({ ok: false, error }, { status });
 }
 
+// Best-effort server-side error log — uses anon key, never throws.
+async function dbLogError(
+  anon: ReturnType<typeof anonClient>,
+  message: string,
+  context: Record<string, unknown>
+) {
+  try {
+    await anon.from("error_log").insert({ message: message.slice(0, 500), context });
+  } catch {
+    // Never let logging crash the auth flow
+  }
+}
+
 export async function POST(req: NextRequest) {
   console.log("[OTP verify] --- request received ---");
 
@@ -150,6 +163,7 @@ export async function POST(req: NextRequest) {
 
       if (signUpError && !signUpError.message.toLowerCase().includes("already registered")) {
         console.error("[OTP verify] signUp hard error:", signUpError.message);
+        void dbLogError(anon, signUpError.message, { step: "signUp", email });
         return clientError(500, "Verification failed");
       }
       if (signUpData?.session) {
@@ -195,6 +209,7 @@ export async function POST(req: NextRequest) {
 
         if (!accessToken) {
           console.error("[OTP verify] all auth paths exhausted");
+          void dbLogError(anon, "OTP auth: all paths exhausted", { step: "signIn", email, siError: siError?.message });
           return clientError(500, "Verification failed");
         }
       } else {

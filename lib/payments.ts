@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { getPaymentProvider, getBillerProvider } from "@/lib/rails/index";
 import type { BillerCode, ValidateResult } from "@/lib/rails/types";
+import { logError } from "@/lib/logError";
 
 export type PaymentKind = "yaka" | "water" | "airtime" | "send" | "savings";
 
@@ -196,16 +197,28 @@ export function usePayment() {
 
   const run = useCallback(async (input: ProcessPaymentInput) => {
     setStage("processing");
-    const res = await processPayment(input);
-    setResult(res);
-    if (res.ok) {
-      setStage("success");
-    } else if (res.refundReference) {
-      setStage("refunded");
-    } else {
+    try {
+      const res = await processPayment(input);
+      setResult(res);
+      if (res.ok) {
+        setStage("success");
+      } else if (res.refundReference) {
+        setStage("refunded");
+      } else {
+        setStage("failed");
+        if (res.reason === "network") {
+          logError("processPayment network failure", { kind: input.kind, reference: res.reference });
+        }
+      }
+      return res;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      logError(msg, { kind: input.kind, context: "processPayment_throw" });
+      const fallback: ProcessPaymentResult = { ok: false, status: "failed", reference: "", reason: "network" };
+      setResult(fallback);
       setStage("failed");
+      return fallback;
     }
-    return res;
   }, []);
 
   return { run, stage, result };

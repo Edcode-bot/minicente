@@ -16,6 +16,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { BalanceSkeleton, TxnRowSkeleton, Skeleton } from "@/components/Skeleton";
 import { PilotBadge } from "@/components/PilotBadge";
+import { FeedbackSheet } from "@/components/FeedbackSheet";
 
 function txnIcon(kind: string) {
   if (kind === "bill" || kind === "yaka") return "💡";
@@ -295,6 +296,9 @@ export default function HomePage() {
 
       {/* Pilot disclosure */}
       <PilotBadge className="mx-4 mt-3 mb-1" />
+
+      {/* Floating feedback button */}
+      <FeedbackSheet screen="home" />
     </div>
   );
 }
